@@ -1,6 +1,5 @@
 # Hướng dẫn sử dụng X Auto Poster
 
-Tài liệu này dành cho người dùng bình thường. Bạn không cần biết gì về lập trình.
 
 ---
 
