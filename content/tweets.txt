@@ -1,0 +1,36 @@
+# File noi dung cho auto-tweet.
+# - Moi tweet cach nhau bang mot dong chi co: ---
+# - Dong bat dau bang # o DAU moi khoi la comment (se bi bo qua)
+# - Metadata dat o dau khoi, moi thu mot dong:
+#     @media: ./img/anh.png     (lap lai nhieu dong de dinh kem nhieu file)
+#     @reply: 1234567890        (tra loi tweet co id nay)
+#     @quote: 1234567890        (quote tweet)
+#     @url: https://x.com/...   (attachment_url)
+#     @community: 123456        (dang vao community)
+#     @note: true               (tweet dai >280 ky tu, can X Premium)
+#     @schedule: 2026-10-01T10:00:00.000Z  (hen gio dang, X xu ly)
+# Bai nao da dang se duoc ghi nho trong data/state.json, khong dang trung lai.
+
+Chao ngay moi. Hom nay code gi day? 👨‍💻
+
+---
+
+3 thu minh hoc duoc tuan nay:
+
+1. Doc code cu lau hon viet code moi
+2. Ten bien tot thay duoc 3 dong comment
+3. Test khong chay = test khong ton tai
+
+---
+
+@media: ./content/media/demo.png
+Vua dung xong con bot auto-tweet chay bang Node thuan, khong can dependency nao. 🤖
+
+---
+
+Deploy chieu thu 6 la mot lua chon. Mot lua chon te. 🙃
+
+---
+
+# Vi du retweet — bo dau # o dong duoi va thay bang id that de dung:
+# @retweet: 1234567890123456789

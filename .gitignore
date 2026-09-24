@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.*
+!.env.example
+data/
+*.log
+
+# chua thong tin dang nhap proxy
+content/proxies.txt
+
+# bug report tam thoi
+support-ticket.md
+
+.env.bak

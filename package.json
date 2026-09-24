@@ -1,0 +1,22 @@
+{
+  "name": "auto-tweet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Auto tweet bot chay tren twitterapi.io (khong can OAuth cua X)",
+  "type": "module",
+  "bin": {
+    "auto-tweet": "./src/cli.js"
+  },
+  "scripts": {
+    "login": "node src/cli.js login",
+    "post": "node src/cli.js post",
+    "start": "node src/cli.js run",
+    "status": "node src/cli.js status",
+    "check": "node src/cli.js check",
+    "list": "node src/cli.js list",
+    "build:ext": "node build-extension.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

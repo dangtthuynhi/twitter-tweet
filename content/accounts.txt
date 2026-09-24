@@ -1,0 +1,6 @@
+# Danh sach account muon tu dong retweet bai moi.
+# Moi dong 1 handle, co hay khong co @ deu duoc. Dong bat dau bang # la comment.
+# Co the thay bang bien WATCH_ACCOUNTS=a,b,c trong .env
+
+# vercel
+# nodejs
