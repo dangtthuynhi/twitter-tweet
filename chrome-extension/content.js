@@ -202,7 +202,8 @@
    * bai cua chinh minh, va bai da retweet roi.
    */
   function scrapeSearchResults() {
-    const { minLikes, maxPerSearch, excludeWords } = state.settings;
+    const { minLikes, excludeWords } = state.settings;
+    const maxPerSearch = Math.max(1, state.settings.maxPerSearch);
     const excl = excludeWords.toLowerCase().split(',').map((w) => w.trim()).filter(Boolean);
     const me = (document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]')
       ?.textContent || '').toLowerCase();
@@ -644,6 +645,7 @@ rt:1234567890123456789"></textarea>
                       'xap-keyword', 'xap-exclude', 'xap-minlikes', 'xap-maxsearch',
                       'xap-approval', 'xap-latest', 'xap-hfrom', 'xap-hto', 'xap-natural']) {
       $(id).addEventListener('change', syncFromUI);
+      $(id).addEventListener('input', syncFromUI);
     }
   }
 
@@ -679,18 +681,24 @@ rt:1234567890123456789"></textarea>
     const { items, bad } = parseQueue($('xap-queue').value);
     state.queue = items;
     if (bad.length) addLog(`Bo qua ${bad.length} dong "rt:" co ID khong hop le: ${bad.join(', ')}`, 'warn');
-    state.settings.gapMin = Math.max(1, +$('xap-gapmin').value || 15);
-    state.settings.gapMax = Math.max(1, +$('xap-gapmax').value || 45);
-    state.settings.maxPerDay = Math.max(0, +$('xap-max').value || 0);
+    // Khong ep sang so o day. O dang go do ("" hoac "3") ma bi ep ve mac dinh
+    // se nhay so ngay truoc mat. Chi doc thoi; viec kep khoang de luc dung toi.
+    const num = (id, def) => {
+      const raw = $(id).value.trim();
+      return raw === '' ? def : Math.max(0, +raw || def);
+    };
+    state.settings.gapMin = num('xap-gapmin', 15);
+    state.settings.gapMax = num('xap-gapmax', 45);
+    state.settings.maxPerDay = num('xap-max', 0);
     state.settings.loop = $('xap-loop').checked;
     state.settings.keyword = $('xap-keyword').value;
     state.settings.excludeWords = $('xap-exclude').value;
-    state.settings.minLikes = Math.max(0, +$('xap-minlikes').value || 0);
-    state.settings.maxPerSearch = Math.max(1, +$('xap-maxsearch').value || 10);
+    state.settings.minLikes = num('xap-minlikes', 0);
+    state.settings.maxPerSearch = num('xap-maxsearch', 10);
     state.settings.requireApproval = $('xap-approval').checked;
     state.settings.latestOnly = $('xap-latest').checked;
-    state.settings.hourFrom = Math.min(23, Math.max(0, +$('xap-hfrom').value || 0));
-    state.settings.hourTo = Math.min(24, Math.max(0, +$('xap-hto').value || 24));
+    state.settings.hourFrom = Math.min(23, num('xap-hfrom', 0));
+    state.settings.hourTo = Math.min(24, num('xap-hto', 24));
     state.settings.naturalPace = $('xap-natural').checked;
     save(state);
     render();
@@ -751,6 +759,18 @@ rt:1234567890123456789"></textarea>
       .join('');
   }
 
+  /**
+   * Dat gia tri cho o nhap, TRU KHI nguoi dung dang go vao no.
+   * render() chay moi giay; neu ghi de vo dieu kien thi moi lan go mot chu
+   * se bi reset ve gia tri cu ngay sau do.
+   */
+  function setVal(id, value) {
+    const el = $(id);
+    if (!el || document.activeElement === el) return;
+    if (el.type === 'checkbox') el.checked = value;
+    else if (el.value !== String(value)) el.value = value;
+  }
+
   function render() {
     if (!$('xap-status')) return;
     const done = state.queue.filter((i) => state.posted.includes(fingerprint(i))).length;
@@ -763,25 +783,24 @@ rt:1234567890123456789"></textarea>
          Da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`
       : `<b class="xap-dim2">○ Dang dung</b> — da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`;
 
-    if (document.activeElement !== $('xap-queue')) {
-      const parts = state.queue.map((i) => (i.type === 'retweet' ? `rt:${i.id}` : i.text));
-      // co bai nao nhieu dong thi phai dung dau phan cach, khong thi giu moi dong mot bai
-      const multi = parts.some((p) => p.includes('\n'));
-      $('xap-queue').value = parts.join(multi ? '\n---\n' : '\n');
-    }
-    $('xap-gapmin').value = state.settings.gapMin;
-    $('xap-gapmax').value = state.settings.gapMax;
-    $('xap-max').value = state.settings.maxPerDay;
-    $('xap-loop').checked = state.settings.loop;
-    if (document.activeElement !== $('xap-keyword')) $('xap-keyword').value = state.settings.keyword;
-    if (document.activeElement !== $('xap-exclude')) $('xap-exclude').value = state.settings.excludeWords;
-    $('xap-minlikes').value = state.settings.minLikes;
-    $('xap-maxsearch').value = state.settings.maxPerSearch;
-    $('xap-approval').checked = state.settings.requireApproval;
-    $('xap-latest').checked = state.settings.latestOnly;
-    $('xap-hfrom').value = state.settings.hourFrom;
-    $('xap-hto').value = state.settings.hourTo;
-    $('xap-natural').checked = state.settings.naturalPace;
+    const parts = state.queue.map((i) => (i.type === 'retweet' ? `rt:${i.id}` : i.text));
+    // co bai nao nhieu dong thi phai dung dau phan cach, khong thi giu moi dong mot bai
+    const multi = parts.some((p) => p.includes('\n'));
+    setVal('xap-queue', parts.join(multi ? '\n---\n' : '\n'));
+
+    setVal('xap-gapmin', state.settings.gapMin);
+    setVal('xap-gapmax', state.settings.gapMax);
+    setVal('xap-max', state.settings.maxPerDay);
+    setVal('xap-loop', state.settings.loop);
+    setVal('xap-keyword', state.settings.keyword);
+    setVal('xap-exclude', state.settings.excludeWords);
+    setVal('xap-minlikes', state.settings.minLikes);
+    setVal('xap-maxsearch', state.settings.maxPerSearch);
+    setVal('xap-approval', state.settings.requireApproval);
+    setVal('xap-latest', state.settings.latestOnly);
+    setVal('xap-hfrom', state.settings.hourFrom);
+    setVal('xap-hto', state.settings.hourTo);
+    setVal('xap-natural', state.settings.naturalPace);
     renderCandidates();
     renderLog();
   }
