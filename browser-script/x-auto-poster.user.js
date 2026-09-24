@@ -41,8 +41,8 @@
     log: [],
     candidates: [],     // ket qua tim duoc, cho duyet tay
     settings: {
-      intervalMin: 20,  // phut giua 2 bai
-      jitterMin: 5,     // lech ngau nhien +/- phut
+      gapMin: 15,       // cach nhau it nhat bao nhieu phut
+      gapMax: 45,       // nhieu nhat bao nhieu phut
       maxPerDay: 30,
       loop: false,      // het queue thi quay lai tu dau
       // --- tim theo tu khoa ---
@@ -52,6 +52,10 @@
       maxPerSearch: 10,   // moi lan quet lay toi da bao nhieu
       requireApproval: true,  // duyet tay truoc khi vao hang doi
       latestOnly: true,   // tab "Latest" thay vi "Top"
+      // --- nhip tu nhien ---
+      hourFrom: 7,        // chi dang trong khung gio nay
+      hourTo: 23,
+      naturalPace: true,  // gian cach lech chuan thay vi deu tam tap
     },
   };
 
@@ -65,7 +69,16 @@
   const load = () => {
     try {
       const s = JSON.parse(readRaw());
-      return { ...DEFAULTS, ...s, settings: { ...DEFAULTS.settings, ...(s?.settings || {}) } };
+      const merged = { ...DEFAULTS, ...s, settings: { ...DEFAULTS.settings, ...(s?.settings || {}) } };
+      // Ban cu dung intervalMin +/- jitterMin. Doi sang khoang min-max tuong duong.
+      const old = s?.settings;
+      if (old && old.gapMin == null && old.intervalMin != null) {
+        merged.settings.gapMin = Math.max(1, old.intervalMin - (old.jitterMin || 0));
+        merged.settings.gapMax = old.intervalMin + (old.jitterMin || 0);
+      }
+      delete merged.settings.intervalMin;
+      delete merged.settings.jitterMin;
+      return merged;
     } catch {
       return structuredClone(DEFAULTS);
     }
@@ -122,7 +135,22 @@
     document.execCommand('selectAll', false, null);
     document.execCommand('delete', false, null);
     await sleep(80);
-    document.execCommand('insertText', false, text);
+
+    // DraftJS khong hieu ky tu "\n" trong insertText — no se bi nuot hoac
+    // bien thanh khoang trang. Phai chen tung dong, giua cac dong dung
+    // insertLineBreak (tuong duong nguoi dung bam Enter trong o soan thao).
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (i > 0) {
+        document.execCommand('insertLineBreak', false, null);
+        await sleep(60);
+      }
+      if (lines[i]) {
+        document.execCommand('insertText', false, lines[i]);
+        await sleep(60);
+      }
+    }
+
     await sleep(400);
     if (!el.textContent.trim()) throw new Error('Go chu vao o soan thao that bai');
   }
@@ -243,6 +271,48 @@
     save(state);
   }
 
+  /**
+   * Mo o soan thao bang cach bam dung nut ben trai — giong het thao tac cua
+   * nguoi dung, va KHONG tai lai trang. Tai lai trang moi lan dang la mot mau
+   * hanh vi khac han nguoi dung that, vi ung dung X von dieu huong noi bo.
+   * @returns {boolean} mo duoc bang SPA hay khong
+   */
+  async function openComposerInPlace() {
+    const btn =
+      document.querySelector('[data-testid="SideNav_NewTweet_Button"]') ||
+      document.querySelector('a[href="/compose/post"]');
+    if (!btn) return false;
+    btn.click();
+    try {
+      await waitFor('[data-testid="tweetTextarea_0"]', 6000);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Dong o soan thao dang modal sau khi dang xong. */
+  async function closeComposer() {
+    const close = document.querySelector('[data-testid="app-bar-close"]');
+    if (close) { close.click(); await sleep(500); }
+  }
+
+  /**
+   * Mo mot tweet ngay tai cho neu no dang hien tren trang (SPA routing),
+   * chi tai lai trang khi that su khong tim thay.
+   */
+  async function openTweetInPlace(id) {
+    const link = document.querySelector(`a[href*="/status/${id}"]`);
+    if (!link) return false;
+    link.click();
+    try {
+      await waitFor('[data-testid="retweet"]', 6000);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // ---------------------------------------------------------------- may trang thai
 
   /** Gap "pending" sau khi trang nap lai -> thuc thi no. */
@@ -293,10 +363,50 @@
     return { ...state.queue[0], index: 0 };
   }
 
+  /** Bien ngau nhien chuan (Box-Muller), de sinh gian cach hinh chuong. */
+  function gaussian() {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  const inHours = (d) => {
+    const { hourFrom, hourTo } = state.settings;
+    if (hourFrom === hourTo) return true;
+    const h = d.getHours();
+    return hourFrom <= hourTo ? h >= hourFrom && h < hourTo : h >= hourFrom || h < hourTo;
+  };
+
+  /** Day thoi diem toi lan mo khung gio gan nhat. */
+  function alignToHours(t) {
+    const d = new Date(t);
+    for (let i = 0; i < 48 && !inHours(d); i++) {
+      d.setHours(d.getHours() + 1, Math.floor(Math.random() * 60), 0, 0);
+    }
+    return d.getTime();
+  }
+
   function scheduleNext() {
-    const { intervalMin, jitterMin } = state.settings;
-    const jitter = (Math.random() * 2 - 1) * jitterMin * 60000;
-    state.nextAt = Date.now() + Math.max(30000, intervalMin * 60000 + jitter);
+    let { gapMin, gapMax, naturalPace } = state.settings;
+    if (gapMax < gapMin) [gapMin, gapMax] = [gapMax, gapMin];
+    const lo = gapMin * 60000, hi = gapMax * 60000;
+
+    let delay;
+    if (lo === hi) {
+      delay = lo;
+    } else if (naturalPace) {
+      // Hinh chuong quanh giua khoang. Lay mau lai neu roi ra ngoai, thay vi
+      // kep ve bien — kep se tao ra cum don o dung hai dau khoang, nhin lai
+      // ra mau may moc hon ca random deu.
+      const mid = (lo + hi) / 2;
+      const sigma = (hi - lo) / 5;
+      do { delay = mid + gaussian() * sigma; } while (delay < lo || delay > hi);
+    } else {
+      delay = lo + Math.random() * (hi - lo);
+    }
+
+    state.nextAt = alignToHours(Date.now() + Math.max(60000, delay));
     save(state);
     render();
   }
@@ -324,12 +434,53 @@
 
     state.pending = job;
     save(state);
+    doJob(job);
+  }
 
-    const url = job.type === 'retweet'
+  /**
+   * Uu tien lam ngay tai cho (khong tai lai trang). Chi khi khong mo duoc
+   * moi phai dieu huong cung — luc do may trang thai se tiep tuc sau khi nap lai.
+   */
+  async function doJob(job) {
+    try {
+      if (job.type === 'tweet') {
+        addLog('Dang mo o soan thao...');
+        if (await openComposerInPlace()) {
+          state.pending = null; save(state);
+          await doPostTweet(job.text);
+          await closeComposer();
+          finishJob(job, `Da dang: ${job.text.slice(0, 50)}`);
+          return;
+        }
+      } else {
+        addLog('Dang mo bai de retweet...');
+        if (await openTweetInPlace(job.id)) {
+          state.pending = null; save(state);
+          await doRetweet();
+          finishJob(job, `Da retweet: ${job.id}`);
+          return;
+        }
+      }
+    } catch (e) {
+      state.pending = null;
+      addLog(`Loi: ${e.message}`, 'err');
+      scheduleNext();
+      return;
+    }
+
+    // khong lam tai cho duoc -> danh phai tai lai trang
+    addLog('Khong mo duoc tai cho, phai tai lai trang.', 'warn');
+    location.href = job.type === 'retweet'
       ? `https://x.com/i/status/${job.id}`
       : 'https://x.com/compose/post';
-    addLog(`Dang mo ${job.type === 'retweet' ? 'bai de retweet' : 'o soan thao'}...`);
-    location.href = url;
+  }
+
+  function finishJob(job, msg) {
+    state.posted.push(fingerprint(job));
+    state.perDay[today()] = countToday() + 1;
+    state.cursor = job.index + 1;
+    addLog(msg, 'ok');
+    scheduleNext();
   }
 
   // ---------------------------------------------------------------- giao dien
@@ -401,17 +552,29 @@
       <header id="xap-head"><h3>X Auto Poster <span class="xap-dim">v${VERSION}</span></h3>
         <span id="xap-toggle" class="xap-dim2">▾</span></header>
       <div id="xap-body">
-        <div class="xap-row"><label>Hang doi (moi dong 1 bai, retweet ghi <code>rt:ID</code>)</label></div>
-        <textarea id="xap-queue" placeholder="Chao buoi sang
-rt:1234567890123456789
-Mot bai nua"></textarea>
+        <div class="xap-row"><label>Hang doi — moi dong 1 bai, hoac dung <code>---</code> de tach bai nhieu dong</label></div>
+        <textarea id="xap-queue" placeholder="Bai mot dong
+
+---
+Bai nhieu dong:
+dong hai o day
+
+---
+rt:1234567890123456789"></textarea>
         <div class="xap-row">
-          <label>Moi</label><input id="xap-interval" type="number" min="1"> <label>phut</label>
-          <label>lech</label><input id="xap-jitter" type="number" min="0"> <label>phut</label>
+          <label>Cach nhau</label><input id="xap-gapmin" type="number" min="1">
+          <label>den</label><input id="xap-gapmax" type="number" min="1"> <label>phut</label>
         </div>
         <div class="xap-row">
           <label>Toi da</label><input id="xap-max" type="number" min="0"> <label>bai/ngay</label>
           <label class="xap-right"><input id="xap-loop" type="checkbox" class="xap-wauto"> lap lai</label>
+        </div>
+        <div class="xap-row">
+          <label>Chi dang tu</label><input id="xap-hfrom" type="number" min="0" max="23">
+          <label>den</label><input id="xap-hto" type="number" min="0" max="24"> <label>gio</label>
+        </div>
+        <div class="xap-row">
+          <label><input id="xap-natural" type="checkbox" class="xap-wauto"> nhip tu nhien (tap trung quanh giua khoang)</label>
         </div>
         <details id="xap-search-box" class="xap-mv">
           <summary class="xap-sum">🔎 Tim theo tu khoa</summary>
@@ -485,31 +648,47 @@ Mot bai nua"></textarea>
       location.href = `https://x.com/search?q=${encodeURIComponent(kw)}&src=typed_query${f}`;
     };
 
-    for (const id of ['xap-interval', 'xap-jitter', 'xap-max', 'xap-loop', 'xap-queue',
+    for (const id of ['xap-gapmin', 'xap-gapmax', 'xap-max', 'xap-loop', 'xap-queue',
                       'xap-keyword', 'xap-exclude', 'xap-minlikes', 'xap-maxsearch',
-                      'xap-approval', 'xap-latest']) {
+                      'xap-approval', 'xap-latest', 'xap-hfrom', 'xap-hto', 'xap-natural']) {
       $(id).addEventListener('change', syncFromUI);
     }
   }
 
-  function syncFromUI() {
+  /**
+   * Doc hang doi tu o nhap.
+   * - Co dong "---" rieng  -> moi khoi giua cac dau phan cach la mot bai,
+   *                            trong bai duoc xuong dong thoai mai.
+   * - Khong co "---"        -> moi dong la mot bai (giu tuong thich voi ban cu).
+   * Trong ca hai che do, "\n" viet tay cung duoc doi thanh xuong dong that.
+   */
+  function parseQueue(raw) {
     const bad = [];
-    state.queue = $('xap-queue').value
-      .split('\n')
-      .map((l) => l.trim())
+    const hasSep = /^\s*---\s*$/m.test(raw);
+    const chunks = hasSep ? raw.split(/^\s*---\s*$/m) : raw.split('\n');
+
+    const items = chunks
+      .map((c) => c.trim())
       .filter(Boolean)
-      .map((line) => {
-        const ok = line.match(/^rt:(\d+)$/i);
+      .map((chunk) => {
+        const ok = chunk.match(/^rt:(\d+)$/i);
         if (ok) return { type: 'retweet', id: ok[1] };
-        // Dong bat dau bang "rt:" nhung ID khong phai so = go nham.
+        // Khoi bat dau bang "rt:" nhung ID khong phai so = go nham.
         // Bo qua han, dung de no bi dang thanh mot tweet noi dung "rt:abc".
-        if (/^rt:/i.test(line)) { bad.push(line); return null; }
-        return { type: 'tweet', text: line };
+        if (/^rt:/i.test(chunk) && !chunk.includes('\n')) { bad.push(chunk); return null; }
+        return { type: 'tweet', text: chunk.replace(/\\n/g, '\n') };
       })
       .filter(Boolean);
+
+    return { items, bad, hasSep };
+  }
+
+  function syncFromUI() {
+    const { items, bad } = parseQueue($('xap-queue').value);
+    state.queue = items;
     if (bad.length) addLog(`Bo qua ${bad.length} dong "rt:" co ID khong hop le: ${bad.join(', ')}`, 'warn');
-    state.settings.intervalMin = Math.max(1, +$('xap-interval').value || 20);
-    state.settings.jitterMin = Math.max(0, +$('xap-jitter').value || 0);
+    state.settings.gapMin = Math.max(1, +$('xap-gapmin').value || 15);
+    state.settings.gapMax = Math.max(1, +$('xap-gapmax').value || 45);
     state.settings.maxPerDay = Math.max(0, +$('xap-max').value || 0);
     state.settings.loop = $('xap-loop').checked;
     state.settings.keyword = $('xap-keyword').value;
@@ -518,6 +697,9 @@ Mot bai nua"></textarea>
     state.settings.maxPerSearch = Math.max(1, +$('xap-maxsearch').value || 10);
     state.settings.requireApproval = $('xap-approval').checked;
     state.settings.latestOnly = $('xap-latest').checked;
+    state.settings.hourFrom = Math.min(23, Math.max(0, +$('xap-hfrom').value || 0));
+    state.settings.hourTo = Math.min(24, Math.max(0, +$('xap-hto').value || 24));
+    state.settings.naturalPace = $('xap-natural').checked;
     save(state);
     render();
   }
@@ -590,12 +772,13 @@ Mot bai nua"></textarea>
       : `<b class="xap-dim2">○ Dang dung</b> — da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`;
 
     if (document.activeElement !== $('xap-queue')) {
-      $('xap-queue').value = state.queue
-        .map((i) => (i.type === 'retweet' ? `rt:${i.id}` : i.text))
-        .join('\n');
+      const parts = state.queue.map((i) => (i.type === 'retweet' ? `rt:${i.id}` : i.text));
+      // co bai nao nhieu dong thi phai dung dau phan cach, khong thi giu moi dong mot bai
+      const multi = parts.some((p) => p.includes('\n'));
+      $('xap-queue').value = parts.join(multi ? '\n---\n' : '\n');
     }
-    $('xap-interval').value = state.settings.intervalMin;
-    $('xap-jitter').value = state.settings.jitterMin;
+    $('xap-gapmin').value = state.settings.gapMin;
+    $('xap-gapmax').value = state.settings.gapMax;
     $('xap-max').value = state.settings.maxPerDay;
     $('xap-loop').checked = state.settings.loop;
     if (document.activeElement !== $('xap-keyword')) $('xap-keyword').value = state.settings.keyword;
@@ -604,6 +787,9 @@ Mot bai nua"></textarea>
     $('xap-maxsearch').value = state.settings.maxPerSearch;
     $('xap-approval').checked = state.settings.requireApproval;
     $('xap-latest').checked = state.settings.latestOnly;
+    $('xap-hfrom').value = state.settings.hourFrom;
+    $('xap-hto').value = state.settings.hourTo;
+    $('xap-natural').checked = state.settings.naturalPace;
     renderCandidates();
     renderLog();
   }
