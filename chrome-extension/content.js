@@ -79,6 +79,11 @@
 
   let state = load();
 
+  // Khoa trong bo nho (khong luu xuong storage). runTick() chay moi giay, ma mot
+  // lan dang mat vai giay — khong co khoa nay thi no khoi dong luot thu hai
+  // trong khi luot dau chua xong, gay ra bam nut hai lan.
+  let busy = false;
+
   const today = () => new Date().toISOString().slice(0, 10);
   const countToday = () => state.perDay[today()] || 0;
 
@@ -98,13 +103,13 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   /** Cho mot element xuat hien. Nem loi neu qua han. */
-  function waitFor(selector, timeout = 15000) {
+  function waitFor(selector, timeout = 15000, root = document) {
     return new Promise((resolve, reject) => {
-      const found = document.querySelector(selector);
+      const found = root.querySelector(selector);
       if (found) return resolve(found);
 
       const obs = new MutationObserver(() => {
-        const el = document.querySelector(selector);
+        const el = root.querySelector(selector);
         if (el) { obs.disconnect(); clearTimeout(timer); resolve(el); }
       });
       obs.observe(document.body, { childList: true, subtree: true });
@@ -148,30 +153,34 @@
   }
 
   /** Bam mot nut, doi no het disabled truoc da. */
-  async function clickWhenEnabled(selector, timeout = 12000) {
+  async function clickWhenEnabled(elOrSelector, timeout = 12000, root = document) {
     const deadline = Date.now() + timeout;
     while (Date.now() < deadline) {
-      const el = document.querySelector(selector);
+      const el = typeof elOrSelector === 'string' ? root.querySelector(elOrSelector) : elOrSelector;
       if (el && el.getAttribute('aria-disabled') !== 'true' && !el.disabled) {
         el.click();
         return true;
       }
       await sleep(300);
     }
-    throw new Error(`Nut "${selector}" khong bam duoc (van bi disabled)`);
+    throw new Error(`Nut khong bam duoc (van bi disabled): ${
+      typeof elOrSelector === 'string' ? elOrSelector : elOrSelector?.dataset?.testid || '?'}`);
   }
 
   // ---------------------------------------------------------------- hanh dong
 
-  async function doPostTweet(text) {
-    const box = await waitFor('[data-testid="tweetTextarea_0"]', 20000);
+  async function doPostTweet(text, scope = document) {
+    const box = await waitFor('[data-testid="tweetTextarea_0"]', 20000, scope);
     await typeInto(box, text);
-    // o soan thao dang modal dung tweetButton, dang inline dung tweetButtonInline
-    try {
-      await clickWhenEnabled('[data-testid="tweetButton"]', 8000);
-    } catch {
-      await clickWhenEnabled('[data-testid="tweetButtonInline"]', 8000);
-    }
+
+    // Tim nut dang TRONG CUNG pham vi voi o vua go. Neu lay bua tren ca trang,
+    // rat de bam nhan nut cua o soan thao inline — nut do dang tat vi o do trong.
+    const btn =
+      scope.querySelector('[data-testid="tweetButton"]') ||
+      scope.querySelector('[data-testid="tweetButtonInline"]');
+    if (!btn) throw new Error('Khong thay nut dang trong o soan thao');
+
+    await clickWhenEnabled(btn, 10000);
     await sleep(3000);
   }
 
@@ -274,13 +283,18 @@
     const btn =
       document.querySelector('[data-testid="SideNav_NewTweet_Button"]') ||
       document.querySelector('a[href="/compose/post"]');
-    if (!btn) return false;
+    if (!btn) return null;
     btn.click();
+
+    // Trang chu von da co san mot o soan thao inline o dau dong thoi gian.
+    // Khi modal mo ra thi co HAI o cung ten "tweetTextarea_0" — phai bam vao
+    // dung o trong modal, neu khong chu se go vao o inline nam khuat phia sau.
     try {
-      await waitFor('[data-testid="tweetTextarea_0"]', 6000);
-      return true;
+      const dialog = await waitFor('[role="dialog"]', 6000);
+      await waitFor('[data-testid="tweetTextarea_0"]', 6000, dialog);
+      return dialog;
     } catch {
-      return false;
+      return null;
     }
   }
 
@@ -316,6 +330,7 @@
     // xoa truoc khi lam, de loi gi thi cung khong lap vo han
     state.pending = null;
     save(state);
+    busy = true;
 
     try {
       if (job.type === 'search') {
@@ -336,6 +351,8 @@
       state.cursor = job.index + 1;
     } catch (e) {
       addLog(`Loi: ${e.message}`, 'err');
+    } finally {
+      busy = false;
     }
 
     scheduleNext();
@@ -404,8 +421,9 @@
     render();
   }
 
-  /** Den gio -> chon viec -> ghi pending -> dieu huong. */
+  /** Den gio -> chon viec -> giao cho doJob. */
   function runTick() {
+    if (busy) return;
     if (!state.running || state.pending) return;
     if (Date.now() < state.nextAt) return;
 
@@ -425,47 +443,55 @@
       return;
     }
 
-    state.pending = job;
-    save(state);
+    // KHONG dat state.pending o day. `pending` chi co nghia la "viec con do
+    // qua mot lan nap trang", va doJob se tu dat no ngay truoc khi dieu huong.
+    // Dat o day thi nhanh lam-tai-cho khong ai xoa -> bot dung han sau bai dau,
+    // va lan nap trang ke tiep con dang lai chinh bai do.
     doJob(job);
   }
 
   /**
    * Uu tien lam ngay tai cho (khong tai lai trang). Chi khi khong mo duoc
    * moi phai dieu huong cung — luc do may trang thai se tiep tuc sau khi nap lai.
+   *
+   * `pending` CHI duoc dat ngay truoc khi dieu huong. Dat som (nhu ban truoc)
+   * khien runTick tuong da xong va khoi dong them mot luot nua.
    */
   async function doJob(job) {
+    busy = true;
     try {
       if (job.type === 'tweet') {
         addLog('Dang mo o soan thao...');
-        if (await openComposerInPlace()) {
-          state.pending = null; save(state);
-          await doPostTweet(job.text);
+        const scope = await openComposerInPlace();
+        if (scope) {
+          await doPostTweet(job.text, scope);
           await closeComposer();
-          finishJob(job, `Da dang: ${job.text.slice(0, 50)}`);
+          finishJob(job, `Da dang: ${job.text.split('\n')[0].slice(0, 50)}`);
           return;
         }
       } else {
         addLog('Dang mo bai de retweet...');
         if (await openTweetInPlace(job.id)) {
-          state.pending = null; save(state);
           await doRetweet();
           finishJob(job, `Da retweet: ${job.id}`);
           return;
         }
       }
+
+      // khong lam tai cho duoc -> danh phai tai lai trang
+      addLog('Khong mo duoc tai cho, phai tai lai trang.', 'warn');
+      state.pending = job;
+      save(state);
+      location.href = job.type === 'retweet'
+        ? `https://x.com/i/status/${job.id}`
+        : 'https://x.com/compose/post';
     } catch (e) {
       state.pending = null;
       addLog(`Loi: ${e.message}`, 'err');
       scheduleNext();
-      return;
+    } finally {
+      busy = false;
     }
-
-    // khong lam tai cho duoc -> danh phai tai lai trang
-    addLog('Khong mo duoc tai cho, phai tai lai trang.', 'warn');
-    location.href = job.type === 'retweet'
-      ? `https://x.com/i/status/${job.id}`
-      : 'https://x.com/compose/post';
   }
 
   function finishJob(job, msg) {
@@ -817,7 +843,11 @@ rt:1234567890123456789"></textarea>
       await resumePending();
     }
 
-    setInterval(() => { state = load(); runTick(); render(); }, 1000);
+    setInterval(() => {
+      if (!busy) state = load();   // dang lam viec thi giu state trong bo nho
+      runTick();
+      render();
+    }, 1000);
   }
 
   if (document.readyState === 'complete') boot();
