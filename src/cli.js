@@ -12,6 +12,8 @@ import { check } from './check.js';
 import { pollAccounts, loadAccounts } from './watcher.js';
 import { loadProxyList, rankProxies } from './proxies.js';
 import { ipwatch } from './ipwatch.js';
+import { scanAll } from './hashtag.js';
+import { buildDashboard } from './dashboard.js';
 import { totp, validateSecret } from './totp.js';
 import { parseDuration } from './util.js';
 
@@ -38,6 +40,8 @@ Lenh:
   check                  Kiem tra .env + proxy + han muc TRUOC khi chay that
   proxies                Thu ca list proxy, cham diem, goi y cai nen dung
   ipwatch [--report]     Ghi lai IP public cua duong truyen (de do do on dinh)
+  hashtag [--sample N]   Quet hashtag, tu chinh cua so de lay ~N bai moi lan
+  dashboard [--days N]   Sinh dashboard.html tu du lieu da quet
   totp [secret]          In ma 2FA tu TW_TOTP_SECRET de doi chieu voi app
   watch [--force]        Quet 1 lan cac account dang theo doi, tim bai moi
   queue                  Xem hang doi retweet dang cho
@@ -245,6 +249,14 @@ async function main() {
       setInterval(tick, 1000);
       return; // chay lien tuc cho den khi Ctrl+C
     }
+    case 'hashtag':
+      assertConfig({ needAccount: false });
+      await scanAll({ maxPages: Number(opts.pages) || Number(process.env.HASHTAG_PAGES) || 4,
+        targetSample: Number(opts.sample) || Number(process.env.HASHTAG_TARGET_SAMPLE) || 20 });
+      break;
+    case 'dashboard':
+      buildDashboard({ days: Number(opts.days) || 7, out: opts.out || 'dashboard.html' });
+      break;
     case 'ipwatch':
       await ipwatch({ report: opts.report });
       break;

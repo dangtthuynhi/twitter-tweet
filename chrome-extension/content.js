@@ -19,6 +19,8 @@
 
   const KEY = 'x_auto_poster_state';
   const VERSION = '1.0.0';
+  const AUTHOR = 'dangtthuynhi';
+  const REPO = 'https://github.com/dangtthuynhi/twitter-tweet';
 
   // ---------------------------------------------------------------- trang thai
 
@@ -520,6 +522,10 @@
         #xap-panel button{border:0;border-radius:999px;padding:7px 14px;font-weight:700;
           cursor:pointer;font-size:12px}
         .xap-go{background:#1d9bf0;color:#fff}
+        #xap-credit{margin-top:10px;padding-top:8px;border-top:1px solid #38444d;
+          font-size:11px;color:#8899a6;text-align:center}
+        #xap-credit a{color:#8899a6;text-decoration:none}
+        #xap-credit a:hover{text-decoration:underline}
         .xap-stop{background:#f4212e;color:#fff}
         .xap-ghost{background:#273340;color:#e7e9ea}
         #xap-status{padding:8px;background:#0f1419;border-radius:8px;margin:10px 0;font-size:12px}
@@ -620,6 +626,7 @@ rt:1234567890123456789"></textarea>
           <button id="xap-reset" class="xap-ghost">Xoa lich su</button>
         </div>
         <div id="xap-log"></div>
+        <div id="xap-credit">Lam boi <a href="${REPO}" target="_blank" rel="noopener">${AUTHOR}</a></div>
       </div>`;
     document.body.appendChild(panel);
 

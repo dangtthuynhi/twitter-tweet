@@ -34,3 +34,7 @@ Rồi vào `chrome://extensions` bấm nút **Reload** (↻) trên thẻ extensi
 ## Dùng
 
 Giống hệt bản userscript — xem [../browser-script/README.md](../browser-script/README.md).
+
+---
+
+Làm bởi **dangtthuynhi** — https://github.com/dangtthuynhi/twitter-tweet

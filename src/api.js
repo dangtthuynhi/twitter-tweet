@@ -230,6 +230,22 @@ export async function getBalance() {
   return { credits, bonus, total: credits + bonus, usd: (credits + bonus) / 100000 };
 }
 
+/**
+ * Tim tweet nang cao.
+ * GET /twitter/tweet/advanced_search — 20 tweet/trang, tinh phi $0.00015/tweet.
+ */
+export async function advancedSearch({ query, queryType = 'Latest', cursor = '' }) {
+  const payload = await request('/twitter/tweet/advanced_search', {
+    query: { query, queryType, cursor },
+    retries: 2,
+  });
+  return {
+    tweets: payload.tweets || [],
+    hasNextPage: payload.has_next_page ?? false,
+    nextCursor: payload.next_cursor ?? '',
+  };
+}
+
 /** Doan xem loi co phai do session het han khong, de tu dang nhap lai. */
 export function isAuthError(err) {
   const msg = `${err?.message || ''} ${JSON.stringify(err?.payload || {})}`.toLowerCase();

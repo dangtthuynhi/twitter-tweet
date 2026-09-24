@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "Auto tweet bot chay tren twitterapi.io (khong can OAuth cua X)",
+  "author": "dangtthuynhi",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dangtthuynhi/twitter-tweet"
+  },
   "type": "module",
   "bin": {
     "auto-tweet": "./src/cli.js"

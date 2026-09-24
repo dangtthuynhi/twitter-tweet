@@ -1,5 +1,18 @@
 import path from 'node:path';
+import dns from 'node:dns';
+import net from 'node:net';
 import { loadEnv } from './env.js';
+
+// Nhieu mang (dac biet la VM sau NAT) quang cao co IPv6 nhung khong dinh tuyen
+// duoc. Node thu IPv6 truoc roi treo den timeout, trong khi curl tu lui ve
+// IPv4 — day la ly do "fetch failed" ma curl van chay binh thuong.
+//
+// Chi dat ipv4first thoi CHUA du: thuat toan Happy Eyeballs (autoSelectFamily)
+// van tu mo song song ca hai ho dia chi va van mac o IPv6. Phai tat no di.
+dns.setDefaultResultOrder('ipv4first');
+if (typeof net.setDefaultAutoSelectFamily === 'function') {
+  net.setDefaultAutoSelectFamily(false);
+}
 import { parseDuration } from './util.js';
 
 loadEnv();

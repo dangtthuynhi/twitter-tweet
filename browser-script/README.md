@@ -158,3 +158,7 @@ Chỉ khi không tìm thấy nút (ví dụ đang ở trang không có thanh đi
 Mở DevTools (F12) → Console, tìm dòng bắt đầu bằng `[auto-poster]`. Bảng điều khiển cũng có khung log riêng.
 
 Nếu báo `Khong thay element "..."` thì nhiều khả năng X đã đổi `data-testid`. Mở F12 → Elements, tìm ô soạn thảo xem thuộc tính mới là gì rồi sửa trong script.
+
+---
+
+Làm bởi **dangtthuynhi** — https://github.com/dangtthuynhi/twitter-tweet

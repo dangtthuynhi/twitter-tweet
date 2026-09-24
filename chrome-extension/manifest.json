@@ -3,10 +3,17 @@
   "name": "X Auto Poster",
   "version": "1.0.0",
   "description": "Tu dong dang tweet / retweet theo lich, chay ngay trong tab X da dang nhap",
+  "author": "dangtthuynhi",
+  "homepage_url": "https://github.com/dangtthuynhi/twitter-tweet",
   "content_scripts": [
     {
-      "matches": ["https://x.com/*", "https://twitter.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ]
