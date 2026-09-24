@@ -22,9 +22,60 @@ Nó cũng có thể **tự động retweet** các bài của người khác, k�
 
 ---
 
-## 2. Cài đặt
+## 2. Tải về và giải nén
 
-Bạn cần trình duyệt **Google Chrome** và một **thư mục** chứa công cụ (người đưa bạn tài liệu này sẽ gửi kèm).
+Bạn sẽ nhận được một file tên **`X-Auto-Poster.zip`** (qua Zalo, email, hoặc link tải).
+
+File `.zip` là một file nén — giống như một cái hộp đựng nhiều file bên trong. Phải **mở hộp ra** trước khi dùng được.
+
+### Bước 1 — Tải file về
+
+Bấm vào file được gửi để tải. Chrome sẽ tự lưu vào thư mục **Tải xuống** (Downloads) trên máy bạn.
+
+Tải xong, bạn thấy nó hiện ở góc dưới màn hình Chrome, hoặc bấm biểu tượng mũi tên ⬇ ở góc trên bên phải để xem.
+
+### Bước 2 — Tạo chỗ để cất
+
+Trước khi giải nén, hãy tạo một thư mục cố định để cất công cụ này.
+
+**Cách dễ nhất:** mở thư mục **Tài liệu** (Documents), tạo một thư mục mới tên `X-Auto-Poster`.
+
+> Tại sao cần bước này? Vì sau khi cài, Chrome sẽ **đọc trực tiếp từ thư mục đó mỗi lần bạn mở X**. Nếu để trong thư mục Tải xuống rồi lỡ tay xoá đi dọn dẹp, công cụ sẽ ngừng hoạt động. Để ở Tài liệu thì an toàn hơn nhiều.
+
+### Bước 3 — Giải nén
+
+**Trên Windows:**
+
+1. Mở thư mục Tải xuống, tìm file `X-Auto-Poster.zip`
+2. Bấm **chuột phải** vào file → chọn **"Extract All..."** (hoặc "Giải nén tất cả")
+3. Một cửa sổ hiện ra hỏi giải nén vào đâu — bấm **Browse** và chọn thư mục `X-Auto-Poster` bạn vừa tạo ở Tài liệu
+4. Bấm **Extract**
+
+**Trên Mac:**
+
+1. Mở thư mục Tải xuống (Downloads)
+2. **Bấm đúp** vào file `X-Auto-Poster.zip` — máy tự giải nén ngay cạnh đó
+3. Kéo thư mục vừa hiện ra vào thư mục `X-Auto-Poster` ở Tài liệu
+
+### Bước 4 — Kiểm tra đã đúng chưa
+
+Mở thư mục vừa giải nén, bạn phải thấy **một thư mục tên `chrome-extension`**, và bên trong nó có hai file:
+
+```
+chrome-extension
+   ├── content.js
+   └── manifest.json
+```
+
+Thấy đúng như vậy là được. Ghi nhớ đường dẫn tới thư mục `chrome-extension` này — bước sau cần tới.
+
+> Nếu bấm đúp vào file zip mà chỉ thấy xem được nội dung chứ không giải nén ra, nghĩa là bạn mới chỉ *xem trộm* bên trong hộp thôi. Phải dùng "Extract All" như hướng dẫn trên.
+
+---
+
+## 3. Cài đặt
+
+Bạn cần trình duyệt **Google Chrome**. Nếu máy chưa có, tải ở [google.com/chrome](https://www.google.com/chrome/).
 
 ### Bước 1 — Mở trang quản lý tiện ích
 
@@ -50,9 +101,9 @@ Bấm nút **"Tải tiện ích đã giải nén"**.
 
 > Đừng bấm nhầm nút "Đóng gói tiện ích" bên cạnh — nút đó dùng cho việc khác.
 
-Một cửa sổ chọn thư mục hiện ra. Tìm tới thư mục có tên **`chrome-extension`** và chọn nó.
+Một cửa sổ chọn thư mục hiện ra. Tìm tới thư mục **`chrome-extension`** mà bạn đã giải nén ở phần trước (trong Tài liệu → `X-Auto-Poster`), rồi chọn nó.
 
-**Quan trọng:** chọn *cả thư mục*, đừng mở nó ra rồi chọn file bên trong.
+**Quan trọng:** chọn *cả thư mục* `chrome-extension`, đừng mở nó ra rồi chọn file `content.js` hay `manifest.json` bên trong.
 
 ### Bước 4 — Kiểm tra
 
@@ -66,7 +117,7 @@ Xong rồi. Không cần làm gì thêm ở trang này.
 
 ---
 
-## 3. Lần đầu sử dụng
+## 4. Lần đầu sử dụng
 
 Mở **x.com** và đăng nhập như bình thường.
 
@@ -78,7 +129,7 @@ Bảng này có thể thu gọn lại bằng cách bấm vào thanh tiêu đề 
 
 ---
 
-## 4. Đăng bài tự động
+## 5. Đăng bài tự động
 
 ### Viết danh sách bài
 
@@ -151,7 +202,7 @@ Bấm nút đỏ **"Dừng"** bất cứ lúc nào.
 
 ---
 
-## 5. Retweet
+## 6. Retweet
 
 ### Retweet một bài cụ thể
 
@@ -201,7 +252,7 @@ Hoặc dùng **"Lấy hết"** / **"Bỏ hết"** cho nhanh.
 
 ---
 
-## 6. Bảng tra nhanh các nút
+## 7. Bảng tra nhanh các nút
 
 | Nút / Ô | Tác dụng |
 |---|---|
@@ -218,7 +269,7 @@ Hoặc dùng **"Lấy hết"** / **"Bỏ hết"** cho nhanh.
 
 ---
 
-## 7. Những điều nên biết
+## 8. Những điều nên biết
 
 ### Đừng đăng quá nhiều
 
@@ -240,7 +291,7 @@ Nó không đọc, không can thiệp vào bất kỳ trang nào khác. Không l
 
 ---
 
-## 8. Khi gặp trục trặc
+## 9. Khi gặp trục trặc
 
 ### Không thấy bảng điều khiển
 
@@ -271,7 +322,7 @@ Bấm **"Xoá lịch sử"**. Công cụ sẽ quên các bài đã đăng và đ
 
 ---
 
-## 9. Câu hỏi thường gặp
+## 10. Câu hỏi thường gặp
 
 **Tắt máy tính thì sao?**
 Nó dừng. Bật lại, mở x.com rồi bấm "Bắt đầu" là chạy tiếp từ chỗ dừng. Danh sách và cài đặt vẫn còn nguyên.
@@ -293,6 +344,12 @@ Nếu dùng chừng mực — vài bài một ngày, cách nhau vài chục phú
 
 **Tôi dùng được cho nhiều tài khoản không?**
 Công cụ đăng bằng tài khoản bạn đang đăng nhập. Muốn đổi thì đăng xuất rồi đăng nhập tài khoản khác.
+
+**Tôi lỡ xoá thư mục đã giải nén rồi, sao giờ?**
+Công cụ sẽ ngừng chạy. Giải nén lại file zip vào thư mục cố định, rồi cài lại từ đầu theo phần 3. Danh sách bài và cài đặt của bạn vẫn còn, không mất.
+
+**Có được đổi tên hay di chuyển thư mục sau khi cài không?**
+Không nên. Chrome ghi nhớ đường dẫn cũ, đổi chỗ là nó không tìm thấy nữa. Nếu lỡ chuyển rồi thì vào `chrome://extensions` xoá đi và cài lại.
 
 **Xoá công cụ đi thế nào?**
 Vào `chrome://extensions`, tìm ô "X Auto Poster", bấm **"Xoá"**.
