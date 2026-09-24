@@ -23,52 +23,81 @@ Nó cũng có thể **tự động retweet** các bài của người khác, k�
 
 ## 2. Tải về và giải nén
 
-Bạn sẽ nhận được một file tên **`X-Auto-Poster.zip`** (qua Zalo, email, hoặc link tải).
+Công cụ được để công khai trên GitHub — bạn tải trực tiếp, không cần tài khoản, không cần ai gửi file.
 
-File `.zip` là một file nén — giống như một cái hộp đựng nhiều file bên trong. Phải **mở hộp ra** trước khi dùng được.
+### Bước 1 — Mở trang tải
 
-### Bước 1 — Tải file về
+Bấm vào link này (hoặc chép vào thanh địa chỉ trình duyệt):
 
-Bấm vào file được gửi để tải. Chrome sẽ tự lưu vào thư mục **Tải xuống** (Downloads) trên máy bạn.
+**https://github.com/dangtthuynhi/twitter-tweet**
 
-Tải xong, bạn thấy nó hiện ở góc dưới màn hình Chrome, hoặc bấm biểu tượng mũi tên ⬇ ở góc trên bên phải để xem.
+Trang hiện ra có nhiều tên file — đừng bận tâm, bạn không cần đọc gì ở đó.
 
-### Bước 2 — Tạo chỗ để cất
+### Bước 2 — Tải xuống
 
-Trước khi giải nén, hãy tạo một thư mục cố định để cất công cụ này.
+Tìm nút màu **xanh lá** có chữ **`< > Code`** ở phía trên bên phải danh sách file. Bấm vào nó.
 
-**Cách dễ nhất:** mở thư mục **Tài liệu** (Documents), tạo một thư mục mới tên `X-Auto-Poster`.
+Một khung nhỏ xổ xuống. Bấm dòng cuối cùng: **"Download ZIP"**.
+
+> **Cách nhanh hơn:** dán thẳng link này vào thanh địa chỉ, file sẽ tải ngay:
+> `https://github.com/dangtthuynhi/twitter-tweet/archive/refs/heads/master.zip`
+
+File tên **`twitter-tweet-master.zip`** sẽ được lưu vào thư mục **Tải xuống** (Downloads).
+
+### Bước 3 — Tạo chỗ để cất
+
+Trước khi giải nén, hãy tạo một thư mục cố định.
+
+**Cách dễ nhất:** mở thư mục **Tài liệu** (Documents), tạo thư mục mới tên `X-Auto-Poster`.
 
 > Tại sao cần bước này? Vì sau khi cài, Chrome sẽ **đọc trực tiếp từ thư mục đó mỗi lần bạn mở X**. Nếu để trong thư mục Tải xuống rồi lỡ tay xoá đi dọn dẹp, công cụ sẽ ngừng hoạt động. Để ở Tài liệu thì an toàn hơn nhiều.
 
-### Bước 3 — Giải nén
+### Bước 4 — Giải nén
 
 **Trên Windows:**
 
-1. Mở thư mục Tải xuống, tìm file `X-Auto-Poster.zip`
-2. Bấm **chuột phải** vào file → chọn **"Extract All..."** (hoặc "Giải nén tất cả")
-3. Một cửa sổ hiện ra hỏi giải nén vào đâu — bấm **Browse** và chọn thư mục `X-Auto-Poster` bạn vừa tạo ở Tài liệu
+1. Mở thư mục Tải xuống, tìm file `twitter-tweet-master.zip`
+2. Bấm **chuột phải** → chọn **"Extract All..."** (hoặc "Giải nén tất cả")
+3. Cửa sổ hiện ra hỏi giải nén vào đâu — bấm **Browse**, chọn thư mục `X-Auto-Poster` bạn vừa tạo
 4. Bấm **Extract**
 
 **Trên Mac:**
 
 1. Mở thư mục Tải xuống (Downloads)
-2. **Bấm đúp** vào file `X-Auto-Poster.zip` — máy tự giải nén ngay cạnh đó
-3. Kéo thư mục vừa hiện ra vào thư mục `X-Auto-Poster` ở Tài liệu
+2. **Bấm đúp** vào file zip — máy tự giải nén ngay cạnh đó
+3. Kéo thư mục vừa hiện ra vào `X-Auto-Poster` ở Tài liệu
 
-### Bước 4 — Kiểm tra đã đúng chưa
+### Bước 5 — Tìm đúng thư mục cần dùng
 
-Mở thư mục vừa giải nén, bạn phải thấy **một thư mục tên `chrome-extension`**, và bên trong nó có hai file:
+Đây là chỗ dễ nhầm nhất, đọc kỹ một chút.
+
+Sau khi giải nén bạn được một thư mục tên **`twitter-tweet-master`**. Mở nó ra, bên trong có rất nhiều thứ:
+
+```
+twitter-tweet-master
+   ├── browser-script
+   ├── chrome-extension      ← CHỈ CẦN CÁI NÀY
+   ├── content
+   ├── src
+   ├── HUONG-DAN-SU-DUNG.md
+   ├── README.md
+   └── package.json
+```
+
+Bạn **chỉ cần thư mục `chrome-extension`**. Tất cả những thứ còn lại là mã nguồn dành cho lập trình viên, bỏ qua hoàn toàn.
+
+Mở thử `chrome-extension` để kiểm tra, bên trong phải có:
 
 ```
 chrome-extension
    ├── content.js
-   └── manifest.json
+   ├── manifest.json
+   └── README.md
 ```
 
-Thấy đúng như vậy là được. Ghi nhớ đường dẫn tới thư mục `chrome-extension` này — bước sau cần tới.
+Thấy đúng như vậy là được. **Ghi nhớ đường dẫn tới thư mục `chrome-extension` này** — bước cài đặt sau cần tới.
 
-> Nếu bấm đúp vào file zip mà chỉ thấy xem được nội dung chứ không giải nén ra, nghĩa là bạn mới chỉ *xem trộm* bên trong hộp thôi. Phải dùng "Extract All" như hướng dẫn trên.
+> Nếu bấm đúp vào file zip mà chỉ thấy duyệt được nội dung bên trong chứ chưa có thư mục mới nào hiện ra, nghĩa là bạn mới chỉ *xem trộm* trong hộp thôi. Phải dùng "Extract All" như hướng dẫn trên.
 
 ---
 
@@ -100,7 +129,13 @@ Bấm nút **"Tải tiện ích đã giải nén"**.
 
 > Đừng bấm nhầm nút "Đóng gói tiện ích" bên cạnh — nút đó dùng cho việc khác.
 
-Một cửa sổ chọn thư mục hiện ra. Tìm tới thư mục **`chrome-extension`** mà bạn đã giải nén ở phần trước (trong Tài liệu → `X-Auto-Poster`), rồi chọn nó.
+Một cửa sổ chọn thư mục hiện ra. Đi theo đường dẫn bạn đã giải nén ở phần 2:
+
+```
+Tài liệu → X-Auto-Poster → twitter-tweet-master → chrome-extension
+```
+
+Chọn thư mục **`chrome-extension`** rồi bấm **Select Folder** (hoặc **Open** trên Mac).
 
 **Quan trọng:** chọn *cả thư mục* `chrome-extension`, đừng mở nó ra rồi chọn file `content.js` hay `manifest.json` bên trong.
 
@@ -349,6 +384,9 @@ Công cụ sẽ ngừng chạy. Giải nén lại file zip vào thư mục cố 
 
 **Có được đổi tên hay di chuyển thư mục sau khi cài không?**
 Không nên. Chrome ghi nhớ đường dẫn cũ, đổi chỗ là nó không tìm thấy nữa. Nếu lỡ chuyển rồi thì vào `chrome://extensions` xoá đi và cài lại.
+
+**Làm sao cập nhật khi có bản mới?**
+Tải lại file zip từ cùng link ở phần 2, giải nén đè lên thư mục cũ (chọn "Replace" khi máy hỏi). Rồi vào `chrome://extensions`, bấm nút **Tải lại** (biểu tượng ↻) trên ô "X Auto Poster", và tải lại tab X. Không phải cài lại từ đầu, danh sách bài vẫn còn.
 
 **Xoá công cụ đi thế nào?**
 Vào `chrome://extensions`, tìm ô "X Auto Poster", bấm **"Xoá"**.
