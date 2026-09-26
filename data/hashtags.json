@@ -1,0 +1,515 @@
+{
+  "tags": {
+    "#AI": {
+      "snapshots": [
+        {
+          "at": 1790241492880,
+          "sampled": 80,
+          "windowH": 0.25,
+          "windowS": 900,
+          "ratePerHour": 416,
+          "exact": false,
+          "marginPct": 11,
+          "reliable": true,
+          "likes": 26,
+          "retweets": 10,
+          "replies": 2,
+          "views": 3134,
+          "authors": {
+            "drbartpm": {
+              "posts": 4,
+              "followers": 1058,
+              "likes": 0
+            },
+            "GuyRowlison": {
+              "posts": 1,
+              "followers": 28,
+              "likes": 0
+            },
+            "Vitameen_AI": {
+              "posts": 1,
+              "followers": 96,
+              "likes": 0
+            },
+            "visautomation": {
+              "posts": 1,
+              "followers": 427,
+              "likes": 0
+            },
+            "Sanjufflm4567": {
+              "posts": 1,
+              "followers": 51,
+              "likes": 0
+            },
+            "DMitscheunig": {
+              "posts": 1,
+              "followers": 4,
+              "likes": 0
+            },
+            "TheVantaStudio": {
+              "posts": 1,
+              "followers": 27,
+              "likes": 0
+            },
+            "nullnullnoriko": {
+              "posts": 2,
+              "followers": 4,
+              "likes": 0
+            },
+            "ALHAN_HMODE9742": {
+              "posts": 1,
+              "followers": 178,
+              "likes": 0
+            },
+            "pingednews": {
+              "posts": 1,
+              "followers": 2,
+              "likes": 0
+            },
+            "denebrixai0": {
+              "posts": 1,
+              "followers": 7,
+              "likes": 0
+            },
+            "webuters": {
+              "posts": 1,
+              "followers": 95,
+              "likes": 0
+            },
+            "AI_News_Digest": {
+              "posts": 1,
+              "followers": 63,
+              "likes": 0
+            },
+            "notreal_dreams": {
+              "posts": 2,
+              "followers": 82,
+              "likes": 1
+            },
+            "Nooral_AI": {
+              "posts": 1,
+              "followers": 3,
+              "likes": 0
+            },
+            "Qualiteg_global": {
+              "posts": 1,
+              "followers": 30,
+              "likes": 0
+            },
+            "shunr_AI": {
+              "posts": 1,
+              "followers": 1629,
+              "likes": 0
+            },
+            "BT_Bazaar": {
+              "posts": 1,
+              "followers": 3287,
+              "likes": 0
+            },
+            "CarZeoo": {
+              "posts": 1,
+              "followers": 2,
+              "likes": 0
+            },
+            "Rani_online": {
+              "posts": 1,
+              "followers": 1021,
+              "likes": 0
+            },
+            "vintuxai": {
+              "posts": 1,
+              "followers": 331,
+              "likes": 0
+            },
+            "AIPulseTrendsAI": {
+              "posts": 1,
+              "followers": 45,
+              "likes": 0
+            },
+            "SGinIndia": {
+              "posts": 1,
+              "followers": 26501,
+              "likes": 2
+            },
+            "EllieWorks_ai": {
+              "posts": 1,
+              "followers": 18,
+              "likes": 0
+            },
+            "ArifurRahman64": {
+              "posts": 1,
+              "followers": 8,
+              "likes": 0
+            },
+            "Heydar_Ross_K": {
+              "posts": 1,
+              "followers": 741,
+              "likes": 0
+            },
+            "RobertS43277736": {
+              "posts": 1,
+              "followers": 79,
+              "likes": 1
+            },
+            "FrancisBen38922": {
+              "posts": 1,
+              "followers": 230,
+              "likes": 1
+            },
+            "VisiveAI": {
+              "posts": 1,
+              "followers": 2190,
+              "likes": 0
+            },
+            "tommscs": {
+              "posts": 2,
+              "followers": 209,
+              "likes": 0
+            },
+            "BeSovereign_1": {
+              "posts": 1,
+              "followers": 268,
+              "likes": 0
+            },
+            "kaientaiz": {
+              "posts": 1,
+              "followers": 32642,
+              "likes": 1
+            },
+            "ChristinaYaori": {
+              "posts": 1,
+              "followers": 43,
+              "likes": 0
+            },
+            "UndercodeUpdate": {
+              "posts": 1,
+              "followers": 748,
+              "likes": 0
+            },
+            "dstrausser83": {
+              "posts": 1,
+              "followers": 4777,
+              "likes": 0
+            },
+            "hiyoriaiux": {
+              "posts": 1,
+              "followers": 5,
+              "likes": 0
+            },
+            "RicardoSGulko": {
+              "posts": 1,
+              "followers": 12029,
+              "likes": 0
+            },
+            "MaybeTech": {
+              "posts": 1,
+              "followers": 5750,
+              "likes": 0
+            },
+            "OVYKA": {
+              "posts": 1,
+              "followers": 67,
+              "likes": 0
+            },
+            "BASTAcon": {
+              "posts": 1,
+              "followers": 1807,
+              "likes": 0
+            },
+            "LoranSimon": {
+              "posts": 1,
+              "followers": 47,
+              "likes": 0
+            },
+            "plone": {
+              "posts": 1,
+              "followers": 4994,
+              "likes": 0
+            },
+            "IssamDomainer": {
+              "posts": 1,
+              "followers": 120,
+              "likes": 0
+            },
+            "AllkeyAria": {
+              "posts": 1,
+              "followers": 6,
+              "likes": 1
+            },
+            "ICStatues": {
+              "posts": 1,
+              "followers": 98,
+              "likes": 0
+            },
+            "QoTSolutions": {
+              "posts": 1,
+              "followers": 38,
+              "likes": 0
+            },
+            "digitalhealth_1": {
+              "posts": 1,
+              "followers": 2971,
+              "likes": 0
+            },
+            "deltaworks": {
+              "posts": 1,
+              "followers": 515,
+              "likes": 0
+            },
+            "agenticodingCon": {
+              "posts": 2,
+              "followers": 2,
+              "likes": 0
+            },
+            "esginvesting_1": {
+              "posts": 2,
+              "followers": 3910,
+              "likes": 0
+            },
+            "maalaimalar": {
+              "posts": 1,
+              "followers": 361712,
+              "likes": 1
+            },
+            "discerningdmain": {
+              "posts": 1,
+              "followers": 1804,
+              "likes": 0
+            },
+            "adolfo_urso": {
+              "posts": 1,
+              "followers": 17238,
+              "likes": 1
+            },
+            "preeta_vyas": {
+              "posts": 1,
+              "followers": 454,
+              "likes": 0
+            },
+            "SatyamJha126822": {
+              "posts": 1,
+              "followers": 10,
+              "likes": 0
+            },
+            "alice_ai_blog": {
+              "posts": 1,
+              "followers": 7,
+              "likes": 0
+            },
+            "letmesocialtoo": {
+              "posts": 1,
+              "followers": 122,
+              "likes": 0
+            },
+            "Techfest_IITB": {
+              "posts": 1,
+              "followers": 25963,
+              "likes": 10
+            },
+            "RobotRights7778": {
+              "posts": 1,
+              "followers": 45,
+              "likes": 0
+            },
+            "FIRELINETAMIL": {
+              "posts": 1,
+              "followers": 16,
+              "likes": 0
+            },
+            "fintechwforum": {
+              "posts": 1,
+              "followers": 1016,
+              "likes": 1
+            },
+            "bsindia": {
+              "posts": 1,
+              "followers": 2175813,
+              "likes": 1
+            },
+            "QATestLab": {
+              "posts": 1,
+              "followers": 6289,
+              "likes": 0
+            },
+            "TNNavbharat": {
+              "posts": 1,
+              "followers": 185640,
+              "likes": 0
+            },
+            "StarDomainHQ": {
+              "posts": 1,
+              "followers": 22,
+              "likes": 0
+            },
+            "caimpareAItools": {
+              "posts": 1,
+              "followers": 15,
+              "likes": 0
+            },
+            "nishiyamakimita": {
+              "posts": 1,
+              "followers": 2304,
+              "likes": 1
+            },
+            "ChinaBeigeBook": {
+              "posts": 1,
+              "followers": 47086,
+              "likes": 2
+            },
+            "atrcuae": {
+              "posts": 1,
+              "followers": 533,
+              "likes": 1
+            },
+            "LopinRemus": {
+              "posts": 1,
+              "followers": 52,
+              "likes": 1
+            },
+            "CHAPEP_Z": {
+              "posts": 1,
+              "followers": 54463,
+              "likes": 0
+            },
+            "RaffaeleMeleMRK": {
+              "posts": 1,
+              "followers": 12,
+              "likes": 0
+            }
+          },
+          "cost": 0.011999999999999999,
+          "topTweet": {
+            "id": "2103048710066442514",
+            "text": "Excited to collaborate with XyneAI and bring XØR to Techfest IIT Bombay!\nAn open-source, multimodal decision model built with data sovereignty and enterprise ap",
+            "author": "Techfest_IITB",
+            "likes": 10
+          }
+        },
+        {
+          "at": 1790241589676,
+          "sampled": 3,
+          "windowH": 0.012,
+          "windowS": 43,
+          "ratePerHour": 250,
+          "exact": true,
+          "marginPct": 58,
+          "reliable": false,
+          "likes": 0,
+          "retweets": 0,
+          "replies": 1,
+          "views": 29,
+          "authors": {
+            "DriartElshani": {
+              "posts": 1,
+              "followers": 582,
+              "likes": 0
+            },
+            "CyberDefence24": {
+              "posts": 1,
+              "followers": 21746,
+              "likes": 0
+            },
+            "Muhdahzuk0": {
+              "posts": 1,
+              "followers": 235,
+              "likes": 0
+            }
+          },
+          "cost": 0.00045,
+          "topTweet": {
+            "id": "2103051732385247291",
+            "text": "At the United Nations General Assembly in New York, 10 years ago, for the Internet Governance Forum. Today, we must focus on AI Safety and AI Governance for a b",
+            "author": "DriartElshani",
+            "likes": 0
+          }
+        },
+        {
+          "at": 1790241611778,
+          "sampled": 5,
+          "windowH": 0.0061,
+          "windowS": 22,
+          "ratePerHour": 814,
+          "exact": true,
+          "marginPct": 45,
+          "reliable": true,
+          "likes": 0,
+          "retweets": 0,
+          "replies": 0,
+          "views": 461,
+          "authors": {
+            "VictorRLopezV": {
+              "posts": 1,
+              "followers": 8,
+              "likes": 0
+            },
+            "90g577557": {
+              "posts": 1,
+              "followers": 113,
+              "likes": 0
+            },
+            "ani_digital": {
+              "posts": 1,
+              "followers": 795994,
+              "likes": 0
+            },
+            "drbartpm": {
+              "posts": 1,
+              "followers": 1058,
+              "likes": 0
+            },
+            "jukkaisorinne": {
+              "posts": 1,
+              "followers": 4226,
+              "likes": 0
+            }
+          },
+          "cost": 0.0007499999999999999,
+          "topTweet": {
+            "id": "2103051853932179714",
+            "text": "Stop making critical decisions based on 'gut feel' alone. 🧠\n\nThis 5-Lens Cognitive Analysis prompt turns GPT-4o into an elite decision advisor. Run your projec",
+            "author": "VictorRLopezV",
+            "likes": 0
+          }
+        },
+        {
+          "at": 1790241664232,
+          "sampled": 3,
+          "windowH": 0.0061,
+          "windowS": 22,
+          "ratePerHour": 488,
+          "exact": true,
+          "marginPct": 58,
+          "reliable": false,
+          "likes": 0,
+          "retweets": 0,
+          "replies": 0,
+          "views": 0,
+          "authors": {
+            "ApostolicCourt": {
+              "posts": 1,
+              "followers": 38,
+              "likes": 0
+            },
+            "drbartpm": {
+              "posts": 1,
+              "followers": 1058,
+              "likes": 0
+            },
+            "Express247PK": {
+              "posts": 1,
+              "followers": 513,
+              "likes": 0
+            }
+          },
+          "cost": 0.00045,
+          "topTweet": {
+            "id": "2103052050544083368",
+            "text": "With my uncle King Saud #AI https://t.co/KOavljghda",
+            "author": "ApostolicCourt",
+            "likes": 0
+          }
+        }
+      ]
+    }
+  }
+}

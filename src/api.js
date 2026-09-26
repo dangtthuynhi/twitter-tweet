@@ -246,6 +246,40 @@ export async function advancedSearch({ query, queryType = 'Latest', cursor = '' 
   };
 }
 
+/**
+ * Lay reply cua mot tweet.
+ * GET /twitter/tweet/replies — 20 reply/trang, $0.00015 moi reply tra ve.
+ * Luu y: tweetId phai la tweet GOC, khong phai mot reply trong luong.
+ */
+export async function getTweetReplies({ tweetId, cursor = '' }) {
+  const payload = await request('/twitter/tweet/replies', {
+    query: { tweetId: String(tweetId), cursor },
+    retries: 2,
+  });
+  const list = payload.replies || payload.tweets || payload.data || [];
+  return {
+    replies: Array.isArray(list) ? list : [],
+    hasMore: payload.has_more ?? payload.has_next_page ?? false,
+    nextCursor: payload.next_cursor ?? '',
+  };
+}
+
+/**
+ * Lay danh sach nguoi da retweet mot tweet.
+ * GET /twitter/tweet/retweeters — tra ve mang `users`.
+ */
+export async function getRetweeters({ tweetId, cursor = '' }) {
+  const payload = await request('/twitter/tweet/retweeters', {
+    query: { tweetId: String(tweetId), cursor },
+    retries: 2,
+  });
+  return {
+    users: payload.users || [],
+    hasMore: payload.has_next_page ?? payload.has_more ?? false,
+    nextCursor: payload.next_cursor ?? '',
+  };
+}
+
 /** Doan xem loi co phai do session het han khong, de tu dang nhap lai. */
 export function isAuthError(err) {
   const msg = `${err?.message || ''} ${JSON.stringify(err?.payload || {})}`.toLowerCase();

@@ -14,6 +14,8 @@ import { loadProxyList, rankProxies } from './proxies.js';
 import { ipwatch } from './ipwatch.js';
 import { scanAll } from './hashtag.js';
 import { buildDashboard } from './dashboard.js';
+import { fetchAllReplies, saveReplies, summarize, parseTweetId,
+         fetchAllRetweeters, saveRetweeters } from './replies.js';
 import { totp, validateSecret } from './totp.js';
 import { parseDuration } from './util.js';
 
@@ -42,6 +44,10 @@ Lenh:
   ipwatch [--report]     Ghi lai IP public cua duong truyen (de do do on dinh)
   hashtag [--sample N]   Quet hashtag, tu chinh cua so de lay ~N bai moi lan
   dashboard [--days N]   Sinh dashboard.html tu du lieu da quet
+  replies <link|id>      Lay toan bo comment cua 1 bai, luu JSON + CSV
+                         [--max N] tran so reply (mac dinh 500)
+                         [--format json|csv|both]
+  retweeters <link|id>   Lay danh sach nguoi da retweet 1 bai
   totp [secret]          In ma 2FA tu TW_TOTP_SECRET de doi chieu voi app
   watch [--force]        Quet 1 lan cac account dang theo doi, tim bai moi
   queue                  Xem hang doi retweet dang cho
@@ -254,6 +260,67 @@ async function main() {
       await scanAll({ maxPages: Number(opts.pages) || Number(process.env.HASHTAG_PAGES) || 4,
         targetSample: Number(opts.sample) || Number(process.env.HASHTAG_TARGET_SAMPLE) || 20 });
       break;
+    case 'replies': {
+      assertConfig({ needAccount: false });
+      const target = opts._[0];
+      if (!target) {
+        log.error('Thieu link hoac ID bai viet.');
+        log.plain('  Vi du: node src/cli.js replies https://x.com/ai/status/1234567890');
+        process.exitCode = 1;
+        break;
+      }
+      const max = Number(opts.max) || 500;
+      log.info(`Lay reply cua ${parseTweetId(target)} (tran ${max}, ~$${(max * 0.00015).toFixed(3)} neu day tran)...`);
+      const res = await fetchAllReplies(target, {
+        max,
+        onPage: ({ page, total, cost }) =>
+          log.info(`  trang ${page}: da co ${total} reply — $${cost.toFixed(5)}`),
+      });
+      if (!res.replies.length) {
+        log.warn('Khong lay duoc reply nao. Kiem tra: ID co phai TWEET GOC khong (khong phai mot reply)?');
+        break;
+      }
+      const files = saveReplies(res.tweetId, res.replies, { format: opts.format || 'both' });
+      const s2 = summarize(res.replies);
+
+      log.plain(`\n=== ${s2.total} reply ===`);
+      log.plain(`  Tac gia khac nhau : ${s2.uniqueAuthors}`);
+      log.plain(`  Tong like         : ${s2.totalLikes.toLocaleString()}`);
+      if (s2.langs.length) log.plain(`  Ngon ngu          : ${s2.langs.map(([l, c]) => `${l} (${c})`).join(', ')}`);
+      if (s2.topAuthors.length) {
+        log.plain('  Reply nhieu nhat  :');
+        for (const [a, c] of s2.topAuthors) log.plain(`      @${a} — ${c} reply`);
+      }
+      if (s2.mostLiked) {
+        log.plain(`  Reply nhieu like  : @${s2.mostLiked.author} (${s2.mostLiked.likes} like)`);
+        log.plain(`      ${s2.mostLiked.text.slice(0, 90)}`);
+      }
+      log.plain(`\n  Da luu: ${files.map((f) => f.replace(process.cwd() + '/', '')).join(', ')}`);
+      log.plain(`  Chi phi: $${res.cost.toFixed(5)}` + (res.reachedCap ? '  (DA CHAM TRAN — con reply chua lay, tang --max de lay tiep)' : ''));
+      break;
+    }
+    case 'retweeters': {
+      assertConfig({ needAccount: false });
+      const target = opts._[0];
+      if (!target) { log.error('Thieu link hoac ID bai viet.'); process.exitCode = 1; break; }
+      log.info(`Lay nguoi retweet bai ${parseTweetId(target)}...`);
+      const res = await fetchAllRetweeters(target, {
+        max: Number(opts.max) || 1000,
+        onPage: ({ page, total }) => log.info(`  trang ${page}: da co ${total} nguoi`),
+      });
+      if (!res.users.length) { log.warn('Khong lay duoc ai. Bai co the chua co retweet, hoac bi khoa.'); break; }
+      const files = saveRetweeters(res.tweetId, res.users);
+      const withF = res.users.filter((u) => (u.followers ?? 0) > 0);
+      log.plain(`\n=== ${res.users.length} nguoi da retweet ===`);
+      if (withF.length) {
+        const sorted = [...withF].sort((a, b) => (b.followers || 0) - (a.followers || 0));
+        log.plain(`  Tong follower cong don: ${withF.reduce((a, u) => a + (u.followers || 0), 0).toLocaleString()}`);
+        log.plain('  Nhieu follower nhat:');
+        for (const u of sorted.slice(0, 5)) log.plain(`      @${u.userName} — ${(u.followers || 0).toLocaleString()} follower`);
+      }
+      log.plain(`\n  Da luu: ${files.map((f) => f.replace(process.cwd() + '/', '')).join(', ')}`);
+      break;
+    }
     case 'dashboard':
       buildDashboard({ days: Number(opts.days) || 7, out: opts.out || 'dashboard.html' });
       break;

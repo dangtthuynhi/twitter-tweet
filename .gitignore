@@ -1,20 +1,19 @@
 node_modules/
+*.log
+
+# Thong tin dang nhap — TUYET DOI khong len GitHub
 .env
 .env.*
 !.env.example
-data/
-*.log
-
-# chua thong tin dang nhap proxy
+.env.bak
 content/proxies.txt
-
-# bug report tam thoi
 support-ticket.md
 
-.env.bak
+# Trang thai chay cua bot (khong phai du lieu, va co dau van tay session)
+data/session.json
+data/state.json
+data/ip-history.json
 
-# file nen de gui cho nguoi dung
-X-Auto-Poster.zip
-
+# San pham build
 dashboard.html
-data/tweets.ndjson
+X-Auto-Poster.zip
