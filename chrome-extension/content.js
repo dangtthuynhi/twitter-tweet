@@ -621,11 +621,11 @@ dong hai o day
 ---
 rt:1234567890123456789"></textarea>
         <div class="xap-row">
-          <label>Cach nhau</label><input id="xap-gapmin" type="number" min="1">
-          <label>den</label><input id="xap-gapmax" type="number" min="1"> <label>phut</label>
+          <label>Cach nhau</label><input id="xap-gapmin" type="number" min="1" value="1">
+          <label>den</label><input id="xap-gapmax" type="number" min="1" value="4"> <label>phut</label>
         </div>
         <div class="xap-row">
-          <label>Toi da</label><input id="xap-max" type="number" min="0"> <label>bai/ngay</label>
+          <label>Toi da</label><input id="xap-max" type="number" min="0" value="100"> <label>bai/ngay</label>
           <label class="xap-right"><input id="xap-loop" type="checkbox" class="xap-wauto"> lap lai</label>
         </div>
         <div class="xap-row">
@@ -733,8 +733,11 @@ rt:1234567890123456789"></textarea>
                       'xap-keyword', 'xap-exclude', 'xap-minlikes', 'xap-maxsearch',
                       'xap-approval', 'xap-latest', 'xap-hfrom', 'xap-hto', 'xap-natural',
                       'xap-template']) {
-      $(id).addEventListener('change', syncFromUI);
-      $(id).addEventListener('input', syncFromUI);
+      const el = $(id);
+      if (el) {
+        el.addEventListener('change', syncFromUI);
+        el.addEventListener('input', syncFromUI);
+      }
     }
   }
 
@@ -851,11 +854,12 @@ rt:1234567890123456789"></textarea>
       const raw = $(id).value.trim();
       return raw === '' ? def : Math.max(0, +raw || def);
     };
-    state.settings.gapMin = num('xap-gapmin', 15);
-    state.settings.gapMax = num('xap-gapmax', 45);
-    state.settings.maxPerDay = num('xap-max', 0);
+    state.settings.gapMin = num('xap-gapmin', 1);
+    state.settings.gapMax = num('xap-gapmax', 4);
+    state.settings.maxPerDay = num('xap-max', 100);
     state.settings.loop = $('xap-loop').checked;
-    state.settings.contentTemplate = $('xap-template').value || 'Check this out: {hashtag} #interesting';
+    const templateEl = $('xap-template');
+    if (templateEl) state.settings.contentTemplate = templateEl.value || 'Check this out: {hashtag} #interesting';
     state.settings.keyword = $('xap-keyword').value;
     state.settings.excludeWords = $('xap-exclude').value;
     state.settings.minLikes = num('xap-minlikes', 0);
