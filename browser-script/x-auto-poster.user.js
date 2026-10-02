@@ -821,13 +821,9 @@ rt:1234567890123456789"></textarea>
       if (contentMode === 'file' && state.contentData.length > 0) {
         // File mode: random content tu file
         const quantity = parseInt($('xap-content-quantity').value) || 5;
-        const hashtags = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
+        const labels = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
 
-        for (const tag of hashtags) {
-          if (!tag.startsWith('#')) {
-            bad.push(tag);
-            continue;
-          }
+        for (const tag of labels) {
           if (state.postedHashtags.includes(tag.toLowerCase())) {
             continue;
           }
@@ -863,7 +859,6 @@ rt:1234567890123456789"></textarea>
             });
           }
         }
-        if (bad.length) addLog(`Bo qua ${bad.length} dong khong phai hashtag`, 'warn');
         return { items, bad, hasSep: false };
       }
 
