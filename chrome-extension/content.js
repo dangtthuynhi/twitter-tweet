@@ -629,8 +629,8 @@ rt:1234567890123456789"></textarea>
           <label class="xap-right"><input id="xap-loop" type="checkbox" class="xap-wauto"> lap lai</label>
         </div>
         <div class="xap-row">
-          <label>Chi dang tu</label><input id="xap-hfrom" type="number" min="0" max="23">
-          <label>den</label><input id="xap-hto" type="number" min="0" max="24"> <label>gio</label>
+          <label>Chi dang tu</label><input id="xap-hfrom" type="number" min="0" max="23" value="7">
+          <label>den</label><input id="xap-hto" type="number" min="0" max="24" value="23"> <label>gio</label>
         </div>
         <div class="xap-row">
           <label><input id="xap-natural" type="checkbox" class="xap-wauto"> nhip tu nhien (tap trung quanh giua khoang)</label>
@@ -991,7 +991,7 @@ rt:1234567890123456789"></textarea>
 
   async function loadDefaultContent() {
     try {
-      const response = await fetch(chrome.runtime.getURL('../content-lenamiu.json'));
+      const response = await fetch(chrome.runtime.getURL('content-lenamiu.json'));
       if (!response.ok) return;
       const data = await response.json();
       if (data.contents && Array.isArray(data.contents)) {

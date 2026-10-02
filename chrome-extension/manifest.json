@@ -16,5 +16,11 @@
       ],
       "run_at": "document_idle"
     }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content-lenamiu.json"],
+      "matches": ["https://x.com/*", "https://twitter.com/*"]
+    }
   ]
 }
