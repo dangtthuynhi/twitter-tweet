@@ -94,6 +94,9 @@
   // lan dang mat vai giay — khong co khoa nay thi no khoi dong luot thu hai
   // trong khi luot dau chua xong, gay ra bam nut hai lan.
   let busy = false;
+  // X co the chen hop thoai chan ngang (canh bao trung bai, thu thach bot...).
+  // Dem so lan that bai lien tiep de dung han thay vi dam dau vao mai.
+  let consecutiveFails = 0;
 
   const today = () => new Date().toISOString().slice(0, 10);
   const countToday = () => state.perDay[today()] || 0;
@@ -315,6 +318,33 @@
     if (close) { close.click(); await sleep(500); }
   }
 
+  /** Chu dang hien tren hop thoai chan ngang, de con biet X dang noi gi. */
+  function describeOverlay() {
+    const el = document.querySelector('[role="alert"]') || document.querySelector('[role="dialog"]');
+    const txt = el && (el.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 140);
+    return txt || '';
+  }
+
+  /**
+   * Don hop thoai con sot lai. Khong don thi lan dang ke tiep van bi no che,
+   * go chu khong an va hong y het lan nay den lan khac.
+   */
+  async function dismissOverlays() {
+    for (let i = 0; i < 4; i++) {
+      if (!document.querySelector('[role="dialog"], [role="alert"]')) return;
+      const close = document.querySelector('[data-testid="app-bar-close"]') ||
+        document.querySelector('[data-testid="confirmationSheetCancel"]') ||
+        document.querySelector('[role="dialog"] [aria-label="Close"]');
+      if (close) { close.click(); } else {
+        for (const t of ['keydown', 'keyup']) {
+          document.activeElement?.dispatchEvent(
+            new KeyboardEvent(t, { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
+        }
+      }
+      await sleep(400);
+    }
+  }
+
   /**
    * Mo mot tweet ngay tai cho neu no dang hien tren trang (SPA routing),
    * chi tai lai trang khi that su khong tim thay.
@@ -363,8 +393,29 @@
       }
       state.perDay[today()] = countToday() + 1;
       state.cursor = job.index + 1;
+      consecutiveFails = 0;
     } catch (e) {
-      addLog(`Loi: ${e.message}`, 'err');
+      const seen = describeOverlay();
+      addLog(`Loi: ${e.message}${seen ? ` — man hinh dang hien: "${seen}"` : ''}`, 'err');
+      await dismissOverlays();
+
+      // Bo han bai nay, y nhu nhanh dang tai cho: giu lai thi pickNext() se
+      // nhat no len o luot sau va dam vao dung cho hong do.
+      if (job.type !== 'search') {
+        state.posted.push(fingerprint(job));
+        if (job.hashtag && job.contentIndex != null) {
+          state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
+        }
+        state.cursor = job.index + 1;
+      }
+      if (++consecutiveFails >= 5) {
+        state.running = false;
+        addLog('Hong 5 lan lien tiep, da dung. Kiem tra xem X co dang chan khong.', 'err');
+        save(state);
+        render();
+        busy = false;
+        return;
+      }
     } finally {
       busy = false;
     }
@@ -501,14 +552,33 @@
         : 'https://x.com/compose/post';
     } catch (e) {
       state.pending = null;
-      addLog(`Loi: ${e.message}`, 'err');
-      scheduleNext();
+      const seen = describeOverlay();
+      addLog(`Loi: ${e.message}${seen ? ` — man hinh dang hien: "${seen}"` : ''}`, 'err');
+      await dismissOverlays();
+
+      // Bo han bai nay. Khong bo thi pickNext() tra lai dung no o luot sau,
+      // gap lai dung hop thoai do, va ket cung o day mai.
+      state.posted.push(fingerprint(job));
+      if (job.hashtag && job.contentIndex != null) {
+        state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
+      }
+      state.cursor = job.index + 1;
+
+      if (++consecutiveFails >= 5) {
+        state.running = false;
+        addLog('Hong 5 lan lien tiep, da dung. Kiem tra xem X co dang chan khong.', 'err');
+        save(state);
+        render();
+      } else {
+        scheduleNext();
+      }
     } finally {
       busy = false;
     }
   }
 
   function finishJob(job, msg) {
+    consecutiveFails = 0;
     state.posted.push(fingerprint(job));
     if (job.hashtag && job.contentIndex != null) {
       state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
