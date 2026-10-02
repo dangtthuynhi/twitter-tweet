@@ -39,7 +39,6 @@
     queue: [],          // [{type:'tweet', text}] hoac [{type:'retweet', id}]
     cursor: 0,
     posted: [],         // dau van tay cac bai da dang, chong trung
-    postedHashtags: [],  // danh sach hashtag da dang, chong trung
     postedContent: [],   // [{hashtag, contentIndex}, ...] de chong trung content
     contentData: [],     // noi dung duoc load tu file
     perDay: {},         // { '2026-09-23': 5 }
@@ -54,7 +53,6 @@
       loop: false,      // het queue thi quay lai tu dau
       // --- hashtag mode ---
       hashtagMode: false,  // chi nhap hashtag, tu dong them noi dung
-      contentTemplate: 'Check this out: {hashtag} #interesting',  // template voi {hashtag}
       // --- tim theo tu khoa ---
       keyword: '',
       excludeWords: '',
@@ -365,11 +363,8 @@
         addLog(`Da retweet: ${job.id}`, 'ok');
       }
       state.posted.push(fingerprint(job));
-      if (job.hashtag) {
-        state.postedHashtags.push(job.hashtag);
-        if (job.contentIndex != null) {
-          state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
-        }
+      if (job.hashtag && job.contentIndex != null) {
+        state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
       }
       state.perDay[today()] = countToday() + 1;
       state.cursor = job.index + 1;
@@ -520,11 +515,8 @@
 
   function finishJob(job, msg) {
     state.posted.push(fingerprint(job));
-    if (job.hashtag) {
-      state.postedHashtags.push(job.hashtag);
-      if (job.contentIndex != null) {
-        state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
-      }
+    if (job.hashtag && job.contentIndex != null) {
+      state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
     }
     state.perDay[today()] = countToday() + 1;
     state.cursor = job.index + 1;
@@ -616,23 +608,10 @@
         </div>
         <div id="xap-normal-label" class="xap-row"><label>Hang doi — moi dong 1 bai, hoac dung <code>---</code> de tach bai nhieu dong</label></div>
         <div id="xap-hashtag-label" style="display:none">
-          <div class="xap-row"><label>Chon che do noi dung:</label></div>
-          <div class="xap-row">
-            <label><input id="xap-content-mode-template" type="radio" name="content_mode" value="template" checked> Template</label>
-            <label style="margin-left:20px"><input id="xap-content-mode-file" type="radio" name="content_mode" value="file"> File content</label>
-          </div>
-
-          <div id="xap-template-mode">
-            <div class="xap-row"><label>Template noi dung (dung {hashtag} de chen hashtag):</label></div>
-            <textarea id="xap-template" placeholder="Check this out: {hashtag} #interesting" style="height:64px;margin-bottom:8px;"></textarea>
-            <label>Hashtag (moi dong 1 hashtag):</label>
-          </div>
-
-          <div id="xap-file-mode" style="display:none">
-            <div class="xap-row">
-              <label>So tweet muon dang:</label>
-              <input id="xap-content-quantity" type="number" min="1" max="100" value="5" style="width:60px;">
-            </div>
+          <div class="xap-row"><label>Labels (moi dong 1 label):</label></div>
+          <div class="xap-row" style="margin-top:12px">
+            <label>So tweet muon dang:</label>
+            <input id="xap-content-quantity" type="number" min="1" max="100" value="5" style="width:60px;">
           </div>
         </div>
         <textarea id="xap-queue" placeholder="Bai mot dong
@@ -644,16 +623,16 @@ dong hai o day
 ---
 rt:1234567890123456789"></textarea>
         <div class="xap-row">
-          <label>Cach nhau</label><input id="xap-gapmin" type="number" min="1">
-          <label>den</label><input id="xap-gapmax" type="number" min="1"> <label>phut</label>
+          <label>Cach nhau</label><input id="xap-gapmin" type="number" min="1" value="1">
+          <label>den</label><input id="xap-gapmax" type="number" min="1" value="4"> <label>phut</label>
         </div>
         <div class="xap-row">
-          <label>Toi da</label><input id="xap-max" type="number" min="0"> <label>bai/ngay</label>
+          <label>Toi da</label><input id="xap-max" type="number" min="0" value="100"> <label>bai/ngay</label>
           <label class="xap-right"><input id="xap-loop" type="checkbox" class="xap-wauto"> lap lai</label>
         </div>
         <div class="xap-row">
-          <label>Chi dang tu</label><input id="xap-hfrom" type="number" min="0" max="23">
-          <label>den</label><input id="xap-hto" type="number" min="0" max="24"> <label>gio</label>
+          <label>Chi dang tu</label><input id="xap-hfrom" type="number" min="0" max="23" value="7">
+          <label>den</label><input id="xap-hto" type="number" min="0" max="24" value="23"> <label>gio</label>
         </div>
         <div class="xap-row">
           <label><input id="xap-natural" type="checkbox" class="xap-wauto"> nhip tu nhien (tap trung quanh giua khoang)</label>
@@ -713,7 +692,6 @@ rt:1234567890123456789"></textarea>
     $('xap-reset').onclick = () => {
       if (!confirm('Xoa lich su da dang? Cac bai cu se duoc dang lai.')) return;
       state.posted = [];
-      state.postedHashtags = [];
       state.postedContent = [];
       state.cursor = 0;
       state.perDay = {};
@@ -738,60 +716,24 @@ rt:1234567890123456789"></textarea>
       save(state);
       const normalLabel = $('xap-normal-label');
       const hashtagLabel = $('xap-hashtag-label');
+      const queue = $('xap-queue');
+
       if (state.settings.hashtagMode) {
         if (normalLabel) normalLabel.style.display = 'none';
         if (hashtagLabel) hashtagLabel.style.display = 'block';
+        if (queue) queue.placeholder = 'LENAMIU AT FLEX\n#Flex1045xPLSLoveรักได้ไหม\n#LenaMiu #ลีน่าหมิว\nBat ky text gi';
       } else {
         if (normalLabel) normalLabel.style.display = 'block';
         if (hashtagLabel) hashtagLabel.style.display = 'none';
+        if (queue) queue.placeholder = 'Bai mot dong\n\n---\nBai nhieu dong:\ndong hai o day\n\n---\nrt:1234567890123456789';
       }
       syncFromUI();
-    };
-
-    // Content mode toggle
-    const updateContentModeUI = () => {
-      const mode = document.querySelector('input[name="content_mode"]:checked')?.value || 'template';
-      const templateMode = $('xap-template-mode');
-      const fileMode = $('xap-file-mode');
-      if (mode === 'file') {
-        if (templateMode) templateMode.style.display = 'none';
-        if (fileMode) fileMode.style.display = 'block';
-      } else {
-        if (templateMode) templateMode.style.display = 'block';
-        if (fileMode) fileMode.style.display = 'none';
-      }
-    };
-
-    $('xap-content-mode-template').onchange = updateContentModeUI;
-    $('xap-content-mode-file').onchange = updateContentModeUI;
-
-    $('xap-content-file').onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const data = JSON.parse(event.target.result);
-          if (data.contents && Array.isArray(data.contents)) {
-            state.contentData = data.contents;
-            state.postedContent = [];
-            save(state);
-            addLog(`Da load ${data.contents.length} content tu file`, 'ok');
-            syncFromUI();
-          } else {
-            addLog('File khong dung format (can co property "contents")', 'err');
-          }
-        } catch (err) {
-          addLog(`Loi doc file: ${err.message}`, 'err');
-        }
-      };
-      reader.readAsText(file);
     };
 
     for (const id of ['xap-gapmin', 'xap-gapmax', 'xap-max', 'xap-loop', 'xap-queue',
                       'xap-keyword', 'xap-exclude', 'xap-minlikes', 'xap-maxsearch',
                       'xap-approval', 'xap-latest', 'xap-hfrom', 'xap-hto', 'xap-natural',
-                      'xap-template']) {
+                      'xap-content-quantity']) {
       $(id).addEventListener('change', syncFromUI);
       $(id).addEventListener('input', syncFromUI);
     }
@@ -812,66 +754,40 @@ rt:1234567890123456789"></textarea>
     const items = [];
 
     if (state.settings.hashtagMode) {
-      const contentMode = document.querySelector('input[name="content_mode"]:checked')?.value || 'template';
+      const labelLines = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
+      if (!labelLines.length) return { items, bad, hasSep: false };
 
-      if (contentMode === 'file' && state.contentData.length > 0) {
-        // File mode: random content tu file
-        const quantity = parseInt($('xap-content-quantity').value) || 5;
-        const labels = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
-
-        for (const tag of labels) {
-          if (state.postedHashtags.includes(tag.toLowerCase())) {
-            continue;
-          }
-
-          // Random content tu file, tru cac content da dang voi hashtag nay
-          const usedIndices = state.postedContent
-            .filter((pc) => pc.hashtag === tag.toLowerCase())
-            .map((pc) => pc.contentIndex);
-
-          const availableIndices = state.contentData
-            .map((_, i) => i)
-            .filter((i) => !usedIndices.includes(i));
-
-          if (availableIndices.length < quantity) {
-            addLog(`Chi con ${availableIndices.length} content cho ${tag} (can ${quantity})`, 'warn');
-          }
-
-          for (let i = 0; i < quantity && availableIndices.length > 0; i++) {
-            const randomIdx = Math.floor(Math.random() * availableIndices.length);
-            const contentIndex = availableIndices[randomIdx];
-            availableIndices.splice(randomIdx, 1);
-
-            const content = state.contentData[contentIndex];
-            const now = new Date();
-            const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-            const date = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + now.getFullYear();
-            const text = content + '\n' + time + ' ' + date + '\n' + tag;
-            items.push({
-              type: 'tweet',
-              text,
-              hashtag: tag.toLowerCase(),
-              contentIndex
-            });
-          }
-        }
+      if (!state.contentData.length) {
+        addLog('Chua load duoc content-lenamiu.json', 'err');
         return { items, bad, hasSep: false };
       }
 
-      // Template mode: dung template
-      const hashtags = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
-      for (const tag of hashtags) {
-        if (!tag.startsWith('#')) {
-          bad.push(tag);
-          continue;
-        }
-        if (state.postedHashtags.includes(tag.toLowerCase())) {
-          continue;
-        }
-        const text = state.settings.contentTemplate.replace('{hashtag}', tag);
-        items.push({ type: 'tweet', text, hashtag: tag.toLowerCase() });
+      const quantity = Math.max(1, parseInt($('xap-content-quantity').value, 10) || 5);
+      const labelKey = labelLines.join(' ').toLowerCase();
+
+      // Chi tru nhung content da dang kem dung nhom label nay
+      const usedIndices = state.postedContent
+        .filter((pc) => pc.hashtag === labelKey)
+        .map((pc) => pc.contentIndex);
+      const availableIndices = state.contentData
+        .map((_, i) => i)
+        .filter((i) => !usedIndices.includes(i));
+
+      if (availableIndices.length < quantity) {
+        addLog(`Chi con ${availableIndices.length} content (can ${quantity})`, 'warn');
       }
-      if (bad.length) addLog(`Bo qua ${bad.length} dong khong phai hashtag`, 'warn');
+
+      const now = new Date();
+      const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      const date = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + now.getFullYear();
+
+      for (let i = 0; i < quantity && availableIndices.length > 0; i++) {
+        const pick = Math.floor(Math.random() * availableIndices.length);
+        const contentIndex = availableIndices[pick];
+        availableIndices.splice(pick, 1);
+        const text = state.contentData[contentIndex] + '\n' + time + ' ' + date + '\n' + labelLines.join('\n');
+        items.push({ type: 'tweet', text, hashtag: labelKey, contentIndex });
+      }
       return { items, bad, hasSep: false };
     }
 
@@ -899,10 +815,7 @@ rt:1234567890123456789"></textarea>
     const { items, bad } = parseQueue($('xap-queue').value);
     state.queue = items;
     if (bad.length) {
-      const msg = state.settings.hashtagMode
-        ? `Bo qua ${bad.length} dong khong phai hashtag`
-        : `Bo qua ${bad.length} dong "rt:" co ID khong hop le: ${bad.join(', ')}`;
-      addLog(msg, 'warn');
+      addLog(`Bo qua ${bad.length} dong "rt:" co ID khong hop le: ${bad.join(', ')}`, 'warn');
     }
     // Khong ep sang so o day. O dang go do ("" hoac "3") ma bi ep ve mac dinh
     // se nhay so ngay truoc mat. Chi doc thoi; viec kep khoang de luc dung toi.
@@ -910,11 +823,10 @@ rt:1234567890123456789"></textarea>
       const raw = $(id).value.trim();
       return raw === '' ? def : Math.max(0, +raw || def);
     };
-    state.settings.gapMin = num('xap-gapmin', 15);
-    state.settings.gapMax = num('xap-gapmax', 45);
-    state.settings.maxPerDay = num('xap-max', 0);
+    state.settings.gapMin = num('xap-gapmin', 1);
+    state.settings.gapMax = num('xap-gapmax', 4);
+    state.settings.maxPerDay = num('xap-max', 100);
     state.settings.loop = $('xap-loop').checked;
-    state.settings.contentTemplate = $('xap-template').value || 'Check this out: {hashtag} #interesting';
     state.settings.keyword = $('xap-keyword').value;
     state.settings.excludeWords = $('xap-exclude').value;
     state.settings.minLikes = num('xap-minlikes', 0);
@@ -1008,17 +920,9 @@ rt:1234567890123456789"></textarea>
       : `<b class="xap-dim2">○ Dang dung</b> — da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`;
 
     setVal('xap-hashtag-mode', state.settings.hashtagMode);
-    if (state.settings.hashtagMode) {
-      // Hien thi danh sach hashtag (giu nhung hashtag chua dang)
-      const hashtagsOnly = state.queue
-        .filter((i) => i.type === 'tweet' && i.hashtag)
-        .map((i) => {
-          const tag = i.hashtag;
-          return tag.startsWith('#') ? tag : '#' + tag;
-        });
-      setVal('xap-queue', hashtagsOnly.join('\n'));
-      setVal('xap-template', state.settings.contentTemplate);
-    } else {
+    // Che do hashtag: o nhap la nguon vao cua nguoi dung, khong phai guong cua
+    // hang doi. Ghi nguoc vao day se nuot xuong dong va ha chu thuong label goc.
+    if (!state.settings.hashtagMode) {
       const parts = state.queue.map((i) => (i.type === 'retweet' ? `rt:${i.id}` : i.text));
       // co bai nao nhieu dong thi phai dung dau phan cach, khong thi giu moi dong mot bai
       const multi = parts.some((p) => p.includes('\n'));
@@ -1044,18 +948,25 @@ rt:1234567890123456789"></textarea>
 
   // ---------------------------------------------------------------- khoi dong
 
+  // Trong extension thi doc file dong goi kem; duoi Tampermonkey thi khong co
+  // chrome.runtime nen phai tai tu repo.
+  const CONTENT_URL =
+    typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL
+      ? chrome.runtime.getURL('content-lenamiu.json')
+      : `${REPO.replace('github.com', 'raw.githubusercontent.com')}/master/content-lenamiu.json`;
+
   async function loadDefaultContent() {
     try {
-      const response = await fetch('https://raw.githubusercontent.com/dangtthuynhi/twitter-tweet/master/content-lenamiu.json');
+      const response = await fetch(CONTENT_URL);
       if (!response.ok) return;
       const data = await response.json();
-      if (data.contents && Array.isArray(data.contents)) {
+      if (Array.isArray(data.contents)) {
         state.contentData = data.contents;
         save(state);
-        addLog(`Da load default content (${data.contents.length} items)`, 'ok');
+        addLog(`Da load ${data.contents.length} content`, 'ok');
       }
     } catch (err) {
-      console.log('Khong load duoc default content:', err);
+      addLog(`Khong load duoc content: ${err.message}`, 'err');
     }
   }
 

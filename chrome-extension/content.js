@@ -29,7 +29,6 @@
     queue: [],          // [{type:'tweet', text}] hoac [{type:'retweet', id}]
     cursor: 0,
     posted: [],         // dau van tay cac bai da dang, chong trung
-    postedHashtags: [],  // danh sach hashtag da dang, chong trung
     postedContent: [],   // [{hashtag, contentIndex}, ...] de chong trung content
     contentData: [],     // noi dung duoc load tu file
     perDay: {},         // { '2026-09-23': 5 }
@@ -44,7 +43,6 @@
       loop: false,      // het queue thi quay lai tu dau
       // --- hashtag mode ---
       hashtagMode: false,  // chi nhap hashtag, tu dong them noi dung
-      contentTemplate: 'Check this out: {hashtag} #interesting',  // template voi {hashtag}
       // --- tim theo tu khoa ---
       keyword: '',
       excludeWords: '',
@@ -355,11 +353,8 @@
         addLog(`Da retweet: ${job.id}`, 'ok');
       }
       state.posted.push(fingerprint(job));
-      if (job.hashtag) {
-        state.postedHashtags.push(job.hashtag);
-        if (job.contentIndex != null) {
-          state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
-        }
+      if (job.hashtag && job.contentIndex != null) {
+        state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
       }
       state.perDay[today()] = countToday() + 1;
       state.cursor = job.index + 1;
@@ -510,11 +505,8 @@
 
   function finishJob(job, msg) {
     state.posted.push(fingerprint(job));
-    if (job.hashtag) {
-      state.postedHashtags.push(job.hashtag);
-      if (job.contentIndex != null) {
-        state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
-      }
+    if (job.hashtag && job.contentIndex != null) {
+      state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
     }
     state.perDay[today()] = countToday() + 1;
     state.cursor = job.index + 1;
@@ -690,7 +682,6 @@ rt:1234567890123456789"></textarea>
     $('xap-reset').onclick = () => {
       if (!confirm('Xoa lich su da dang? Cac bai cu se duoc dang lai.')) return;
       state.posted = [];
-      state.postedHashtags = [];
       state.postedContent = [];
       state.cursor = 0;
       state.perDay = {};
@@ -732,12 +723,9 @@ rt:1234567890123456789"></textarea>
     for (const id of ['xap-gapmin', 'xap-gapmax', 'xap-max', 'xap-loop', 'xap-queue',
                       'xap-keyword', 'xap-exclude', 'xap-minlikes', 'xap-maxsearch',
                       'xap-approval', 'xap-latest', 'xap-hfrom', 'xap-hto', 'xap-natural',
-                      'xap-template']) {
-      const el = $(id);
-      if (el) {
-        el.addEventListener('change', syncFromUI);
-        el.addEventListener('input', syncFromUI);
-      }
+                      'xap-content-quantity']) {
+      $(id).addEventListener('change', syncFromUI);
+      $(id).addEventListener('input', syncFromUI);
     }
   }
 
@@ -756,66 +744,40 @@ rt:1234567890123456789"></textarea>
     const items = [];
 
     if (state.settings.hashtagMode) {
-      const contentMode = document.querySelector('input[name="content_mode"]:checked')?.value || 'template';
+      const labelLines = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
+      if (!labelLines.length) return { items, bad, hasSep: false };
 
-      if (contentMode === 'file' && state.contentData.length > 0) {
-        // File mode: random content tu file
-        const quantity = parseInt($('xap-content-quantity').value) || 5;
-        const labelLines = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
-        const allLabels = labelLines.join(' ');
-        const labelKey = allLabels.toLowerCase();
-
-        if (state.postedHashtags.includes(labelKey)) {
-          return { items, bad, hasSep: false };
-        }
-
-        // Random content tu file, tru cac content da dang voi label group nay
-        const usedIndices = state.postedContent
-          .filter((pc) => pc.hashtag === labelKey)
-          .map((pc) => pc.contentIndex);
-
-        const availableIndices = state.contentData
-          .map((_, i) => i)
-          .filter((i) => !usedIndices.includes(i));
-
-        if (availableIndices.length < quantity) {
-          addLog(`Chi con ${availableIndices.length} content (can ${quantity})`, 'warn');
-        }
-
-        for (let i = 0; i < quantity && availableIndices.length > 0; i++) {
-          const randomIdx = Math.floor(Math.random() * availableIndices.length);
-          const contentIndex = availableIndices[randomIdx];
-          availableIndices.splice(randomIdx, 1);
-
-          const content = state.contentData[contentIndex];
-          const now = new Date();
-          const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-          const date = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + now.getFullYear();
-          const text = content + '\n' + time + ' ' + date + '\n' + labelLines.join('\n');
-          items.push({
-            type: 'tweet',
-            text,
-            hashtag: labelKey,
-            contentIndex
-          });
-        }
+      if (!state.contentData.length) {
+        addLog('Chua load duoc content-lenamiu.json', 'err');
         return { items, bad, hasSep: false };
       }
 
-      // Template mode: dung template
-      const hashtags = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
-      for (const tag of hashtags) {
-        if (!tag.startsWith('#')) {
-          bad.push(tag);
-          continue;
-        }
-        if (state.postedHashtags.includes(tag.toLowerCase())) {
-          continue;
-        }
-        const text = state.settings.contentTemplate.replace('{hashtag}', tag);
-        items.push({ type: 'tweet', text, hashtag: tag.toLowerCase() });
+      const quantity = Math.max(1, parseInt($('xap-content-quantity').value, 10) || 5);
+      const labelKey = labelLines.join(' ').toLowerCase();
+
+      // Chi tru nhung content da dang kem dung nhom label nay
+      const usedIndices = state.postedContent
+        .filter((pc) => pc.hashtag === labelKey)
+        .map((pc) => pc.contentIndex);
+      const availableIndices = state.contentData
+        .map((_, i) => i)
+        .filter((i) => !usedIndices.includes(i));
+
+      if (availableIndices.length < quantity) {
+        addLog(`Chi con ${availableIndices.length} content (can ${quantity})`, 'warn');
       }
-      if (bad.length) addLog(`Bo qua ${bad.length} dong khong phai hashtag`, 'warn');
+
+      const now = new Date();
+      const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      const date = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + now.getFullYear();
+
+      for (let i = 0; i < quantity && availableIndices.length > 0; i++) {
+        const pick = Math.floor(Math.random() * availableIndices.length);
+        const contentIndex = availableIndices[pick];
+        availableIndices.splice(pick, 1);
+        const text = state.contentData[contentIndex] + '\n' + time + ' ' + date + '\n' + labelLines.join('\n');
+        items.push({ type: 'tweet', text, hashtag: labelKey, contentIndex });
+      }
       return { items, bad, hasSep: false };
     }
 
@@ -843,10 +805,7 @@ rt:1234567890123456789"></textarea>
     const { items, bad } = parseQueue($('xap-queue').value);
     state.queue = items;
     if (bad.length) {
-      const msg = state.settings.hashtagMode
-        ? `Bo qua ${bad.length} dong khong phai hashtag`
-        : `Bo qua ${bad.length} dong "rt:" co ID khong hop le: ${bad.join(', ')}`;
-      addLog(msg, 'warn');
+      addLog(`Bo qua ${bad.length} dong "rt:" co ID khong hop le: ${bad.join(', ')}`, 'warn');
     }
     // Khong ep sang so o day. O dang go do ("" hoac "3") ma bi ep ve mac dinh
     // se nhay so ngay truoc mat. Chi doc thoi; viec kep khoang de luc dung toi.
@@ -858,8 +817,6 @@ rt:1234567890123456789"></textarea>
     state.settings.gapMax = num('xap-gapmax', 4);
     state.settings.maxPerDay = num('xap-max', 100);
     state.settings.loop = $('xap-loop').checked;
-    const templateEl = $('xap-template');
-    if (templateEl) state.settings.contentTemplate = templateEl.value || 'Check this out: {hashtag} #interesting';
     state.settings.keyword = $('xap-keyword').value;
     state.settings.excludeWords = $('xap-exclude').value;
     state.settings.minLikes = num('xap-minlikes', 0);
@@ -953,17 +910,9 @@ rt:1234567890123456789"></textarea>
       : `<b class="xap-dim2">○ Dang dung</b> — da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`;
 
     setVal('xap-hashtag-mode', state.settings.hashtagMode);
-    if (state.settings.hashtagMode) {
-      // Hien thi danh sach hashtag (giu nhung hashtag chua dang)
-      const hashtagsOnly = state.queue
-        .filter((i) => i.type === 'tweet' && i.hashtag)
-        .map((i) => {
-          const tag = i.hashtag;
-          return tag.startsWith('#') ? tag : '#' + tag;
-        });
-      setVal('xap-queue', hashtagsOnly.join('\n'));
-      setVal('xap-template', state.settings.contentTemplate);
-    } else {
+    // Che do hashtag: o nhap la nguon vao cua nguoi dung, khong phai guong cua
+    // hang doi. Ghi nguoc vao day se nuot xuong dong va ha chu thuong label goc.
+    if (!state.settings.hashtagMode) {
       const parts = state.queue.map((i) => (i.type === 'retweet' ? `rt:${i.id}` : i.text));
       // co bai nao nhieu dong thi phai dung dau phan cach, khong thi giu moi dong mot bai
       const multi = parts.some((p) => p.includes('\n'));
@@ -989,18 +938,25 @@ rt:1234567890123456789"></textarea>
 
   // ---------------------------------------------------------------- khoi dong
 
+  // Trong extension thi doc file dong goi kem; duoi Tampermonkey thi khong co
+  // chrome.runtime nen phai tai tu repo.
+  const CONTENT_URL =
+    typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL
+      ? chrome.runtime.getURL('content-lenamiu.json')
+      : `${REPO.replace('github.com', 'raw.githubusercontent.com')}/master/content-lenamiu.json`;
+
   async function loadDefaultContent() {
     try {
-      const response = await fetch(chrome.runtime.getURL('content-lenamiu.json'));
+      const response = await fetch(CONTENT_URL);
       if (!response.ok) return;
       const data = await response.json();
-      if (data.contents && Array.isArray(data.contents)) {
+      if (Array.isArray(data.contents)) {
         state.contentData = data.contents;
         save(state);
-        addLog(`Da load default content (${data.contents.length} items)`, 'ok');
+        addLog(`Da load ${data.contents.length} content`, 'ok');
       }
     } catch (err) {
-      console.log('Khong load duoc default content:', err);
+      addLog(`Khong load duoc content: ${err.message}`, 'err');
     }
   }
 
