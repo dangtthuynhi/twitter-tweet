@@ -606,7 +606,7 @@
         </div>
         <div id="xap-normal-label" class="xap-row"><label>Hang doi — moi dong 1 bai, hoac dung <code>---</code> de tach bai nhieu dong</label></div>
         <div id="xap-hashtag-label" style="display:none">
-          <div class="xap-row"><label>Hashtag (moi dong 1 hashtag):</label></div>
+          <div class="xap-row"><label>Labels (moi dong 1 label):</label></div>
           <div class="xap-row" style="margin-top:12px">
             <label>So tweet muon dang:</label>
             <input id="xap-content-quantity" type="number" min="1" max="100" value="5" style="width:60px;">
@@ -715,13 +715,16 @@ rt:1234567890123456789"></textarea>
       save(state);
       const normalLabel = $('xap-normal-label');
       const hashtagLabel = $('xap-hashtag-label');
+      const queue = $('xap-queue');
 
       if (state.settings.hashtagMode) {
         if (normalLabel) normalLabel.style.display = 'none';
         if (hashtagLabel) hashtagLabel.style.display = 'block';
+        if (queue) queue.placeholder = 'LENAMIU AT FLEX\n#Flex1045xPLSLoveรักได้ไหม\n#LenaMiu #ลีน่าหมิว\nBat ky text gi';
       } else {
         if (normalLabel) normalLabel.style.display = 'block';
         if (hashtagLabel) hashtagLabel.style.display = 'none';
+        if (queue) queue.placeholder = 'Bai mot dong\n\n---\nBai nhieu dong:\ndong hai o day\n\n---\nrt:1234567890123456789';
       }
       syncFromUI();
     };
@@ -755,43 +758,43 @@ rt:1234567890123456789"></textarea>
       if (contentMode === 'file' && state.contentData.length > 0) {
         // File mode: random content tu file
         const quantity = parseInt($('xap-content-quantity').value) || 5;
-        const labels = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
+        const labelLines = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
+        const allLabels = labelLines.join(' ');
+        const labelKey = allLabels.toLowerCase();
 
-        for (const tag of labels) {
-          if (state.postedHashtags.includes(tag.toLowerCase())) {
-            continue;
-          }
+        if (state.postedHashtags.includes(labelKey)) {
+          return { items, bad, hasSep: false };
+        }
 
-          // Random content tu file, tru cac content da dang voi hashtag nay
-          const usedIndices = state.postedContent
-            .filter((pc) => pc.hashtag === tag.toLowerCase())
-            .map((pc) => pc.contentIndex);
+        // Random content tu file, tru cac content da dang voi label group nay
+        const usedIndices = state.postedContent
+          .filter((pc) => pc.hashtag === labelKey)
+          .map((pc) => pc.contentIndex);
 
-          const availableIndices = state.contentData
-            .map((_, i) => i)
-            .filter((i) => !usedIndices.includes(i));
+        const availableIndices = state.contentData
+          .map((_, i) => i)
+          .filter((i) => !usedIndices.includes(i));
 
-          if (availableIndices.length < quantity) {
-            addLog(`Chi con ${availableIndices.length} content cho ${tag} (can ${quantity})`, 'warn');
-          }
+        if (availableIndices.length < quantity) {
+          addLog(`Chi con ${availableIndices.length} content (can ${quantity})`, 'warn');
+        }
 
-          for (let i = 0; i < quantity && availableIndices.length > 0; i++) {
-            const randomIdx = Math.floor(Math.random() * availableIndices.length);
-            const contentIndex = availableIndices[randomIdx];
-            availableIndices.splice(randomIdx, 1);
+        for (let i = 0; i < quantity && availableIndices.length > 0; i++) {
+          const randomIdx = Math.floor(Math.random() * availableIndices.length);
+          const contentIndex = availableIndices[randomIdx];
+          availableIndices.splice(randomIdx, 1);
 
-            const content = state.contentData[contentIndex];
-            const now = new Date();
-            const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-            const date = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + now.getFullYear();
-            const text = content + '\n' + time + ' ' + date + '\n' + tag;
-            items.push({
-              type: 'tweet',
-              text,
-              hashtag: tag.toLowerCase(),
-              contentIndex
-            });
-          }
+          const content = state.contentData[contentIndex];
+          const now = new Date();
+          const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+          const date = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + now.getFullYear();
+          const text = content + '\n' + time + ' ' + date + '\n' + labelLines.join('\n');
+          items.push({
+            type: 'tweet',
+            text,
+            hashtag: labelKey,
+            contentIndex
+          });
         }
         return { items, bad, hasSep: false };
       }
