@@ -715,19 +715,13 @@ rt:1234567890123456789"></textarea>
       save(state);
       const normalLabel = $('xap-normal-label');
       const hashtagLabel = $('xap-hashtag-label');
-      const searchBox = $('xap-search-box');
-      const gapSettings = document.querySelectorAll('#xap-body > .xap-row:nth-child(n+3)');
 
       if (state.settings.hashtagMode) {
         if (normalLabel) normalLabel.style.display = 'none';
         if (hashtagLabel) hashtagLabel.style.display = 'block';
-        if (searchBox) searchBox.style.display = 'none';
-        gapSettings.forEach(el => el.style.display = 'none');
       } else {
         if (normalLabel) normalLabel.style.display = 'block';
         if (hashtagLabel) hashtagLabel.style.display = 'none';
-        if (searchBox) searchBox.style.display = 'block';
-        gapSettings.forEach(el => el.style.display = 'flex');
       }
       syncFromUI();
     };
