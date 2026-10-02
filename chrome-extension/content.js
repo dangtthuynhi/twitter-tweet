@@ -606,23 +606,10 @@
         </div>
         <div id="xap-normal-label" class="xap-row"><label>Hang doi — moi dong 1 bai, hoac dung <code>---</code> de tach bai nhieu dong</label></div>
         <div id="xap-hashtag-label" style="display:none">
-          <div class="xap-row"><label>Chon che do noi dung:</label></div>
-          <div class="xap-row">
-            <label><input id="xap-content-mode-template" type="radio" name="content_mode" value="template" checked> Template</label>
-            <label style="margin-left:20px"><input id="xap-content-mode-file" type="radio" name="content_mode" value="file"> File content</label>
-          </div>
-
-          <div id="xap-template-mode">
-            <div class="xap-row"><label>Template noi dung (dung {hashtag} de chen hashtag):</label></div>
-            <textarea id="xap-template" placeholder="Check this out: {hashtag} #interesting" style="height:64px;margin-bottom:8px;"></textarea>
-            <label>Hashtag (moi dong 1 hashtag):</label>
-          </div>
-
-          <div id="xap-file-mode" style="display:none">
-            <div class="xap-row">
-              <label>So tweet muon dang:</label>
-              <input id="xap-content-quantity" type="number" min="1" max="100" value="5" style="width:60px;">
-            </div>
+          <div class="xap-row"><label>Hashtag (moi dong 1 hashtag):</label></div>
+          <div class="xap-row" style="margin-top:12px">
+            <label>So tweet muon dang:</label>
+            <input id="xap-content-quantity" type="number" min="1" max="100" value="5" style="width:60px;">
           </div>
         </div>
         <textarea id="xap-queue" placeholder="Bai mot dong
@@ -728,32 +715,22 @@ rt:1234567890123456789"></textarea>
       save(state);
       const normalLabel = $('xap-normal-label');
       const hashtagLabel = $('xap-hashtag-label');
+      const searchBox = $('xap-search-box');
+      const gapSettings = document.querySelectorAll('#xap-body > .xap-row:nth-child(n+3)');
+
       if (state.settings.hashtagMode) {
         if (normalLabel) normalLabel.style.display = 'none';
         if (hashtagLabel) hashtagLabel.style.display = 'block';
+        if (searchBox) searchBox.style.display = 'none';
+        gapSettings.forEach(el => el.style.display = 'none');
       } else {
         if (normalLabel) normalLabel.style.display = 'block';
         if (hashtagLabel) hashtagLabel.style.display = 'none';
+        if (searchBox) searchBox.style.display = 'block';
+        gapSettings.forEach(el => el.style.display = 'flex');
       }
       syncFromUI();
     };
-
-    // Content mode toggle
-    const updateContentModeUI = () => {
-      const mode = document.querySelector('input[name="content_mode"]:checked')?.value || 'template';
-      const templateMode = $('xap-template-mode');
-      const fileMode = $('xap-file-mode');
-      if (mode === 'file') {
-        if (templateMode) templateMode.style.display = 'none';
-        if (fileMode) fileMode.style.display = 'block';
-      } else {
-        if (templateMode) templateMode.style.display = 'block';
-        if (fileMode) fileMode.style.display = 'none';
-      }
-    };
-
-    $('xap-content-mode-template').onchange = updateContentModeUI;
-    $('xap-content-mode-file').onchange = updateContentModeUI;
 
     for (const id of ['xap-gapmin', 'xap-gapmax', 'xap-max', 'xap-loop', 'xap-queue',
                       'xap-keyword', 'xap-exclude', 'xap-minlikes', 'xap-maxsearch',
