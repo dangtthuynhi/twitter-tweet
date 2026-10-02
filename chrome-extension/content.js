@@ -620,10 +620,6 @@
 
           <div id="xap-file-mode" style="display:none">
             <div class="xap-row">
-              <label>Tep content (.json):</label>
-              <input id="xap-content-file" type="file" accept=".json" style="width:auto;">
-            </div>
-            <div class="xap-row">
               <label>So tweet muon dang:</label>
               <input id="xap-content-quantity" type="number" min="1" max="100" value="5" style="width:60px;">
             </div>
@@ -758,29 +754,6 @@ rt:1234567890123456789"></textarea>
 
     $('xap-content-mode-template').onchange = updateContentModeUI;
     $('xap-content-mode-file').onchange = updateContentModeUI;
-
-    $('xap-content-file').onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const data = JSON.parse(event.target.result);
-          if (data.contents && Array.isArray(data.contents)) {
-            state.contentData = data.contents;
-            state.postedContent = [];
-            save(state);
-            addLog(`Da load ${data.contents.length} content tu file`, 'ok');
-            syncFromUI();
-          } else {
-            addLog('File khong dung format (can co property "contents")', 'err');
-          }
-        } catch (err) {
-          addLog(`Loi doc file: ${err.message}`, 'err');
-        }
-      };
-      reader.readAsText(file);
-    };
 
     for (const id of ['xap-gapmin', 'xap-gapmax', 'xap-max', 'xap-loop', 'xap-queue',
                       'xap-keyword', 'xap-exclude', 'xap-minlikes', 'xap-maxsearch',

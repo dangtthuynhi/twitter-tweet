@@ -630,10 +630,6 @@
 
           <div id="xap-file-mode" style="display:none">
             <div class="xap-row">
-              <label>Tep content (.json):</label>
-              <input id="xap-content-file" type="file" accept=".json" style="width:auto;">
-            </div>
-            <div class="xap-row">
               <label>So tweet muon dang:</label>
               <input id="xap-content-quantity" type="number" min="1" max="100" value="5" style="width:60px;">
             </div>
