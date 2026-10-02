@@ -52,7 +52,6 @@
       maxPerDay: 100,
       loop: false,      // het queue thi quay lai tu dau
       // --- hashtag mode ---
-      hashtagMode: false,  // chi nhap hashtag, tu dong them noi dung
       // --- tim theo tu khoa ---
       keyword: '',
       excludeWords: '',
@@ -91,7 +90,9 @@
       return structuredClone(DEFAULTS);
     }
   };
-  const save = (s) => writeRaw(JSON.stringify(s));
+  // contentData duoc nap lai tu file moi lan boot, khong can luu. Giu no trong
+  // storage thi moi phim go (syncFromUI -> save) phai serialize ca tram KB.
+  const save = ({ contentData, ...rest }) => writeRaw(JSON.stringify(rest));
 
   let state = load();
 
@@ -603,25 +604,14 @@
       <header id="xap-head"><h3>X Auto Poster <span class="xap-dim">v${VERSION}</span></h3>
         <span id="xap-toggle" class="xap-dim2">▾</span></header>
       <div id="xap-body">
+        <div class="xap-row"><label>Label — moi dong mot label, tat ca nam chung trong moi tweet</label></div>
+        <textarea id="xap-queue" placeholder="LENAMIU AT FLEX
+#Flex1045xPLSLoveรักได้ไหม
+#LenaMiu #ลีน่าหมิว"></textarea>
         <div class="xap-row">
-          <label><input id="xap-hashtag-mode" type="checkbox" class="xap-wauto"> Chi nhap hashtag</label>
+          <label>So tweet muon dang</label>
+          <input id="xap-content-quantity" type="number" min="1" max="500" value="100">
         </div>
-        <div id="xap-normal-label" class="xap-row"><label>Hang doi — moi dong 1 bai, hoac dung <code>---</code> de tach bai nhieu dong</label></div>
-        <div id="xap-hashtag-label" style="display:none">
-          <div class="xap-row"><label>Labels (moi dong 1 label):</label></div>
-          <div class="xap-row" style="margin-top:12px">
-            <label>So tweet muon dang:</label>
-            <input id="xap-content-quantity" type="number" min="1" max="100" value="5" style="width:60px;">
-          </div>
-        </div>
-        <textarea id="xap-queue" placeholder="Bai mot dong
-
----
-Bai nhieu dong:
-dong hai o day
-
----
-rt:1234567890123456789"></textarea>
         <div class="xap-row">
           <label>Cach nhau</label><input id="xap-gapmin" type="number" min="1" value="1">
           <label>den</label><input id="xap-gapmax" type="number" min="1" value="4"> <label>phut</label>
@@ -711,25 +701,6 @@ rt:1234567890123456789"></textarea>
       location.href = `https://x.com/search?q=${encodeURIComponent(kw)}&src=typed_query${f}`;
     };
 
-    $('xap-hashtag-mode').onclick = () => {
-      state.settings.hashtagMode = $('xap-hashtag-mode').checked;
-      save(state);
-      const normalLabel = $('xap-normal-label');
-      const hashtagLabel = $('xap-hashtag-label');
-      const queue = $('xap-queue');
-
-      if (state.settings.hashtagMode) {
-        if (normalLabel) normalLabel.style.display = 'none';
-        if (hashtagLabel) hashtagLabel.style.display = 'block';
-        if (queue) queue.placeholder = 'LENAMIU AT FLEX\n#Flex1045xPLSLoveรักได้ไหม\n#LenaMiu #ลีน่าหมิว\nBat ky text gi';
-      } else {
-        if (normalLabel) normalLabel.style.display = 'block';
-        if (hashtagLabel) hashtagLabel.style.display = 'none';
-        if (queue) queue.placeholder = 'Bai mot dong\n\n---\nBai nhieu dong:\ndong hai o day\n\n---\nrt:1234567890123456789';
-      }
-      syncFromUI();
-    };
-
     for (const id of ['xap-gapmin', 'xap-gapmax', 'xap-max', 'xap-loop', 'xap-queue',
                       'xap-keyword', 'xap-exclude', 'xap-minlikes', 'xap-maxsearch',
                       'xap-approval', 'xap-latest', 'xap-hfrom', 'xap-hto', 'xap-natural',
@@ -740,83 +711,53 @@ rt:1234567890123456789"></textarea>
   }
 
   /**
-   * Doc hang doi tu o nhap.
-   * - Che do hashtag: nhap mot hashtag 1 dong, tu dong them noi dung theo template.
-   *                  Neu hashtag da dang thi bo qua.
-   * - Che do binh thuong:
-   *   - Co dong "---" rieng  -> moi khoi giua cac dau phan cach la mot bai,
-   *                             trong bai duoc xuong dong thoai mai.
-   *   - Khong co "---"       -> moi dong la mot bai (giu tuong thich voi ban cu).
-   * Trong che do binh thuong, "\n" viet tay cung duoc doi thanh xuong dong that.
+   * Doc o nhap label va sinh ra hang doi tweet.
+   * Moi dong la mot label; ca cum label nam chung trong moi tweet, kem mot
+   * noi dung boc ngau nhien tu content-lenamiu.json va dau thoi gian.
    */
   function parseQueue(raw) {
-    const bad = [];
     const items = [];
+    const labelLines = raw.split('\n').map((h) => h.trim()).filter(Boolean);
+    if (!labelLines.length) return items;
 
-    if (state.settings.hashtagMode) {
-      const labelLines = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
-      if (!labelLines.length) return { items, bad, hasSep: false };
-
-      if (!state.contentData.length) {
-        addLog('Chua load duoc content-lenamiu.json', 'err');
-        return { items, bad, hasSep: false };
-      }
-
-      const quantity = Math.max(1, parseInt($('xap-content-quantity').value, 10) || 5);
-      const labelKey = labelLines.join(' ').toLowerCase();
-
-      // Chi tru nhung content da dang kem dung nhom label nay
-      const usedIndices = state.postedContent
-        .filter((pc) => pc.hashtag === labelKey)
-        .map((pc) => pc.contentIndex);
-      const availableIndices = state.contentData
-        .map((_, i) => i)
-        .filter((i) => !usedIndices.includes(i));
-
-      if (availableIndices.length < quantity) {
-        addLog(`Chi con ${availableIndices.length} content (can ${quantity})`, 'warn');
-      }
-
-      const now = new Date();
-      const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-      const date = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + now.getFullYear();
-
-      for (let i = 0; i < quantity && availableIndices.length > 0; i++) {
-        const pick = Math.floor(Math.random() * availableIndices.length);
-        const contentIndex = availableIndices[pick];
-        availableIndices.splice(pick, 1);
-        const text = state.contentData[contentIndex] + '\n' + time + ' ' + date + '\n' + labelLines.join('\n');
-        items.push({ type: 'tweet', text, hashtag: labelKey, contentIndex });
-      }
-      return { items, bad, hasSep: false };
+    if (!state.contentData.length) {
+      addLog('Chua load duoc content-lenamiu.json', 'err');
+      return items;
     }
 
-    // Che do binh thuong
-    const hasSep = /^\s*---\s*$/m.test(raw);
-    const chunks = hasSep ? raw.split(/^\s*---\s*$/m) : raw.split('\n');
+    const quantity = Math.max(1, parseInt($('xap-content-quantity').value, 10) || 1);
+    const labelKey = labelLines.join(' ').toLowerCase();
 
-    const parsed = chunks
-      .map((c) => c.trim())
-      .filter(Boolean)
-      .map((chunk) => {
-        const ok = chunk.match(/^rt:(\d+)$/i);
-        if (ok) return { type: 'retweet', id: ok[1] };
-        // Khoi bat dau bang "rt:" nhung ID khong phai so = go nham.
-        // Bo qua han, dung de no bi dang thanh mot tweet noi dung "rt:abc".
-        if (/^rt:/i.test(chunk) && !chunk.includes('\n')) { bad.push(chunk); return null; }
-        return { type: 'tweet', text: chunk.replace(/\\n/g, '\n') };
-      })
-      .filter(Boolean);
+    // Chi tru nhung content da dang kem dung nhom label nay
+    const usedIndices = state.postedContent
+      .filter((pc) => pc.hashtag === labelKey)
+      .map((pc) => pc.contentIndex);
+    const availableIndices = state.contentData
+      .map((_, i) => i)
+      .filter((i) => !usedIndices.includes(i));
 
-    return { items: parsed, bad, hasSep };
+    if (availableIndices.length < quantity) {
+      addLog(`Chi con ${availableIndices.length} content (can ${quantity})`, 'warn');
+    }
+
+    const now = new Date();
+    const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    const date = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + now.getFullYear();
+
+    for (let i = 0; i < quantity && availableIndices.length > 0; i++) {
+      const pick = Math.floor(Math.random() * availableIndices.length);
+      const contentIndex = availableIndices[pick];
+      availableIndices.splice(pick, 1);
+      const text = state.contentData[contentIndex] + '\n' + time + ' ' + date + '\n' + labelLines.join('\n');
+      items.push({ type: 'tweet', text, hashtag: labelKey, contentIndex });
+    }
+    return items;
   }
 
   function syncFromUI() {
-    const { items, bad } = parseQueue($('xap-queue').value);
-    state.queue = items;
-    if (bad.length) {
-      addLog(`Bo qua ${bad.length} dong "rt:" co ID khong hop le: ${bad.join(', ')}`, 'warn');
-    }
+    // Retweet do khung duyet day vao khong den tu o nhap, phai giu lai.
+    const retweets = state.queue.filter((i) => i.type === 'retweet');
+    state.queue = [...retweets, ...parseQueue($('xap-queue').value)];
     // Khong ep sang so o day. O dang go do ("" hoac "3") ma bi ep ve mac dinh
     // se nhay so ngay truoc mat. Chi doc thoi; viec kep khoang de luc dung toi.
     const num = (id, def) => {
@@ -919,16 +860,8 @@ rt:1234567890123456789"></textarea>
          Da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`
       : `<b class="xap-dim2">○ Dang dung</b> — da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`;
 
-    setVal('xap-hashtag-mode', state.settings.hashtagMode);
-    // Che do hashtag: o nhap la nguon vao cua nguoi dung, khong phai guong cua
-    // hang doi. Ghi nguoc vao day se nuot xuong dong va ha chu thuong label goc.
-    if (!state.settings.hashtagMode) {
-      const parts = state.queue.map((i) => (i.type === 'retweet' ? `rt:${i.id}` : i.text));
-      // co bai nao nhieu dong thi phai dung dau phan cach, khong thi giu moi dong mot bai
-      const multi = parts.some((p) => p.includes('\n'));
-      setVal('xap-queue', parts.join(multi ? '\n---\n' : '\n'));
-    }
-
+    // O nhap label la nguon vao cua nguoi dung, khong phai guong cua hang doi.
+    // Ghi nguoc vao day se nuot xuong dong va ha chu thuong cua label goc.
     setVal('xap-gapmin', state.settings.gapMin);
     setVal('xap-gapmax', state.settings.gapMax);
     setVal('xap-max', state.settings.maxPerDay);
