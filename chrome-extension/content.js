@@ -101,6 +101,19 @@
   const today = () => new Date().toISOString().slice(0, 10);
   const countToday = () => state.perDay[today()] || 0;
 
+  /** Dau thoi gian dang "hh:mm dd-mm-yyyy" theo gio may. */
+  const stamp = (d = new Date()) =>
+    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ` +
+    `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+
+  /**
+   * Noi dung thuc su dem di dang. Dung lai ngay luc nay de dau thoi gian la gio
+   * that, thay vi gio luc dung hang doi — ca loat bai dung chung mot gio thi sai.
+   * `job.text` van giu nguyen lam dau van tay chong trung, dung dong vao.
+   */
+  const textToPost = (job) =>
+    job.content && job.labels ? `${job.content}\n${stamp()}\n${job.labels}` : job.text;
+
   const fingerprint = (item) =>
     item.type === 'retweet' ? `rt:${item.id}` : `tw:${item.text.trim().slice(0, 200)}`;
 
@@ -381,7 +394,7 @@
         return;
       }
       if (job.type === 'tweet') {
-        await doPostTweet(job.text);
+        await doPostTweet(textToPost(job));
         addLog(`Da dang: ${job.text.slice(0, 50)}`, 'ok');
       } else {
         await doRetweet();
@@ -529,7 +542,7 @@
         addLog('Dang mo o soan thao...');
         const scope = await openComposerInPlace();
         if (scope) {
-          await doPostTweet(job.text, scope);
+          await doPostTweet(textToPost(job), scope);
           await closeComposer();
           finishJob(job, `Da dang: ${job.text.split('\n')[0].slice(0, 50)}`);
           return;
@@ -808,16 +821,22 @@
       addLog(`Chi con ${availableIndices.length} content (can ${quantity})`, 'warn');
     }
 
-    const now = new Date();
-    const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-    const date = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + now.getFullYear();
+    const labels = labelLines.join('\n');
+    const at = stamp();
 
     for (let i = 0; i < quantity && availableIndices.length > 0; i++) {
       const pick = Math.floor(Math.random() * availableIndices.length);
       const contentIndex = availableIndices[pick];
       availableIndices.splice(pick, 1);
-      const text = contentData[contentIndex] + '\n' + time + ' ' + date + '\n' + labelLines.join('\n');
-      items.push({ type: 'tweet', text, hashtag: labelKey, contentIndex });
+      const content = contentData[contentIndex];
+      items.push({
+        type: 'tweet',
+        text: `${content}\n${at}\n${labels}`,
+        content,
+        labels,
+        hashtag: labelKey,
+        contentIndex,
+      });
     }
     return items;
   }
