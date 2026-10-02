@@ -30,18 +30,17 @@
     cursor: 0,
     posted: [],         // dau van tay cac bai da dang, chong trung
     postedContent: [],   // [{hashtag, contentIndex}, ...] de chong trung content
-    contentData: [],     // noi dung duoc load tu file
     perDay: {},         // { '2026-09-23': 5 }
     pending: null,      // viec dang lam do dang qua lan nap trang
     nextAt: 0,
     log: [],
     candidates: [],     // ket qua tim duoc, cho duyet tay
     settings: {
+      labels: '',       // text o nhap label, giu qua cac lan nap lai trang
       gapMin: 1,        // cach nhau it nhat bao nhieu phut
       gapMax: 4,        // nhieu nhat bao nhieu phut
       maxPerDay: 100,
       loop: false,      // het queue thi quay lai tu dau
-      // --- hashtag mode ---
       // --- tim theo tu khoa ---
       keyword: '',
       excludeWords: '',
@@ -80,11 +79,14 @@
       return structuredClone(DEFAULTS);
     }
   };
-  // contentData duoc nap lai tu file moi lan boot, khong can luu. Giu no trong
-  // storage thi moi phim go (syncFromUI -> save) phai serialize ca tram KB.
-  const save = ({ contentData, ...rest }) => writeRaw(JSON.stringify(rest));
+  const save = (s) => writeRaw(JSON.stringify(s));
 
   let state = load();
+
+  // Noi dung nap tu file: tai nguyen tinh, khong phai trang thai. De ngoai `state`
+  // vi (1) runTick moi giay gan lai `state = load()`, nam trong do thi bi xoa sach,
+  // va (2) moi phim go deu save() -> serialize ca tram KB xuong storage.
+  let contentData = [];
 
   // Khoa trong bo nho (khong luu xuong storage). runTick() chay moi giay, ma mot
   // lan dang mat vai giay — khong co khoa nay thi no khoi dong luot thu hai
@@ -710,7 +712,7 @@
     const labelLines = raw.split('\n').map((h) => h.trim()).filter(Boolean);
     if (!labelLines.length) return items;
 
-    if (!state.contentData.length) {
+    if (!contentData.length) {
       addLog('Chua load duoc content-lenamiu.json', 'err');
       return items;
     }
@@ -722,7 +724,7 @@
     const usedIndices = state.postedContent
       .filter((pc) => pc.hashtag === labelKey)
       .map((pc) => pc.contentIndex);
-    const availableIndices = state.contentData
+    const availableIndices = contentData
       .map((_, i) => i)
       .filter((i) => !usedIndices.includes(i));
 
@@ -738,7 +740,7 @@
       const pick = Math.floor(Math.random() * availableIndices.length);
       const contentIndex = availableIndices[pick];
       availableIndices.splice(pick, 1);
-      const text = state.contentData[contentIndex] + '\n' + time + ' ' + date + '\n' + labelLines.join('\n');
+      const text = contentData[contentIndex] + '\n' + time + ' ' + date + '\n' + labelLines.join('\n');
       items.push({ type: 'tweet', text, hashtag: labelKey, contentIndex });
     }
     return items;
@@ -747,7 +749,8 @@
   function syncFromUI() {
     // Retweet do khung duyet day vao khong den tu o nhap, phai giu lai.
     const retweets = state.queue.filter((i) => i.type === 'retweet');
-    state.queue = [...retweets, ...parseQueue($('xap-queue').value)];
+    state.settings.labels = $('xap-queue').value;
+    state.queue = [...retweets, ...parseQueue(state.settings.labels)];
     // Khong ep sang so o day. O dang go do ("" hoac "3") ma bi ep ve mac dinh
     // se nhay so ngay truoc mat. Chi doc thoi; viec kep khoang de luc dung toi.
     const num = (id, def) => {
@@ -850,8 +853,9 @@
          Da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`
       : `<b class="xap-dim2">○ Dang dung</b> — da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`;
 
-    // O nhap label la nguon vao cua nguoi dung, khong phai guong cua hang doi.
-    // Ghi nguoc vao day se nuot xuong dong va ha chu thuong cua label goc.
+    // Ghi lai dung text nguoi dung da go (khong phai gia tri suy ra tu hang doi,
+    // lam vay se nuot xuong dong va ha chu thuong cua label goc).
+    setVal('xap-queue', state.settings.labels);
     setVal('xap-gapmin', state.settings.gapMin);
     setVal('xap-gapmax', state.settings.gapMax);
     setVal('xap-max', state.settings.maxPerDay);
@@ -884,8 +888,7 @@
       if (!response.ok) return;
       const data = await response.json();
       if (Array.isArray(data.contents)) {
-        state.contentData = data.contents;
-        save(state);
+        contentData = data.contents;
         addLog(`Da load ${data.contents.length} content`, 'ok');
       }
     } catch (err) {
