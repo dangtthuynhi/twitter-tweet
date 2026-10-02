@@ -170,6 +170,17 @@
     throw new Error('Khong xoa duoc chu cu trong o soan thao');
   }
 
+  /**
+   * Don o soan thao neu con chu. Phai goi truoc moi lan tai lai trang: con chu
+   * chua gui thi X bat canh bao "Changes you made may not be saved", hop thoai
+   * do chan dieu huong va script khong tu bam duoc -> bot treo cho nguoi bam tay.
+   */
+  async function clearComposerIfAny() {
+    const box = document.querySelector('[data-testid="tweetTextarea_0"]');
+    if (!box || !box.textContent.trim()) return true;
+    try { await clearComposer(box); return true; } catch { return false; }
+  }
+
   async function typeInto(el, text) {
     await clearComposer(el);
 
@@ -580,6 +591,7 @@
       addLog('Khong mo duoc tai cho, phai tai lai trang.', 'warn');
       state.pending = job;
       save(state);
+      await clearComposerIfAny();   // khong thi dinh canh bao "unsaved changes"
       location.href = job.type === 'retweet'
         ? `https://x.com/i/status/${job.id}`
         : 'https://x.com/compose/post';
@@ -607,6 +619,7 @@
         // do bam dung nut dong.
         scheduleNext();
         addLog('Tai lai trang cho sach roi chay tiep.', 'warn');
+        await clearComposerIfAny();   // khong thi dinh canh bao "unsaved changes"
         location.reload();
       }
     } finally {
@@ -791,7 +804,7 @@
       render();
     };
 
-    $('xap-search').onclick = () => {
+    $('xap-search').onclick = async () => {
       syncFromUI();
       const kw = state.settings.keyword.trim();
       if (!kw) return addLog('Chua nhap tu khoa.', 'warn');
@@ -799,6 +812,7 @@
       save(state);
       addLog(`Dang tim "${kw}"...`);
       const f = state.settings.latestOnly ? '&f=live' : '';
+      await clearComposerIfAny();   // khong thi dinh canh bao "unsaved changes"
       location.href = `https://x.com/search?q=${encodeURIComponent(kw)}&src=typed_query${f}`;
     };
 
@@ -1032,12 +1046,9 @@
     if (!state.running) return;
     const box = document.querySelector('[data-testid="tweetTextarea_0"]');
     if (!box || !box.textContent.trim()) return;
-    try {
-      await clearComposer(box);
-      addLog('Da don ban nhap con sot trong o soan thao.', 'warn');
-    } catch {
-      addLog('O soan thao con ban nhap cu, khong don duoc.', 'warn');
-    }
+    addLog(await clearComposerIfAny()
+      ? 'Da don ban nhap con sot trong o soan thao.'
+      : 'O soan thao con ban nhap cu, khong don duoc.', 'warn');
   }
 
   async function boot() {
