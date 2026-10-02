@@ -163,12 +163,25 @@
    * deu khong an vi React khong biet gi. Phai dung execCommand de trinh duyet
    * sinh ra dung chuoi su kien input ma React dang lang nghe.
    */
+  /**
+   * Xoa sach o soan thao va KIEM TRA da sach that chua.
+   * X co the con giu ban nhap cu; xoa hut ma cu go tiep thi chu moi dinh vao
+   * duoi chu cu, thanh mot bai gop nhieu bai.
+   */
+  async function clearComposer(el) {
+    for (let i = 0; i < 3; i++) {
+      el.focus();
+      await sleep(120);
+      document.execCommand('selectAll', false, null);
+      document.execCommand('delete', false, null);
+      await sleep(120);
+      if (!el.textContent.trim()) return;
+    }
+    throw new Error('Khong xoa duoc chu cu trong o soan thao');
+  }
+
   async function typeInto(el, text) {
-    el.focus();
-    await sleep(150);
-    document.execCommand('selectAll', false, null);
-    document.execCommand('delete', false, null);
-    await sleep(80);
+    await clearComposer(el);
 
     // DraftJS khong hieu ky tu "\n" trong insertText — no se bi nuot hoac
     // bien thanh khoang trang. Phai chen tung dong, giua cac dong dung
@@ -186,7 +199,14 @@
     }
 
     await sleep(400);
-    if (!el.textContent.trim()) throw new Error('Go chu vao o soan thao that bai');
+    const typed = el.textContent.replace(/\s+/g, ' ').trim();
+    const want = text.replace(/\s+/g, ' ').trim();
+    if (!typed) throw new Error('Go chu vao o soan thao that bai');
+    // Go dung thi o soan thao phai BAT DAU bang chu vua go. Neu con sot chu cu
+    // thi no bat dau bang chu cu -> bo bai nay, dung de dang ra bai dinh chum.
+    if (!typed.startsWith(want.slice(0, 30))) {
+      throw new Error('O soan thao con chu cu, bo qua bai nay');
+    }
   }
 
   /** Bam mot nut, doi no het disabled truoc da. */
@@ -1011,11 +1031,31 @@
     }
   }
 
+  /**
+   * Ban nhap con sot trong o soan thao se dinh vao dau bai ke tiep, thanh mot
+   * bai gop nhieu bai. Don ngay luc nap trang, truoc khi lam bat cu viec gi.
+   *
+   * Chi don khi bot dang chay. Luc da dung thi o soan thao la cua nguoi dung,
+   * xoa chu ho vua go la mat trang.
+   */
+  async function clearLeftoverDraft() {
+    if (!state.running) return;
+    const box = document.querySelector('[data-testid="tweetTextarea_0"]');
+    if (!box || !box.textContent.trim()) return;
+    try {
+      await clearComposer(box);
+      addLog('Da don ban nhap con sot trong o soan thao.', 'warn');
+    } catch {
+      addLog('O soan thao con ban nhap cu, khong don duoc.', 'warn');
+    }
+  }
+
   async function boot() {
     await sleep(1200);           // cho X dung xong khung trang
     await loadDefaultContent();  // load default content
     buildPanel();
     render();
+    await clearLeftoverDraft();
 
     if (state.pending) {
       addLog('Tiep tuc viec dang do sau khi trang nap lai...');
