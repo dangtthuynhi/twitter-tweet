@@ -1,392 +1,174 @@
 # Hướng dẫn sử dụng X Auto Poster
 
-
----
-
 ## 1. Công cụ này làm gì
 
-Nó giúp bạn **đăng bài lên X (Twitter) tự động theo lịch**.
+Tự đăng bài lên X (Twitter) theo lịch.
 
-Bạn soạn sẵn một danh sách bài, cài đặt bao lâu đăng một bài, rồi bấm nút bắt đầu. Sau đó cứ để yên — nó tự đăng từng bài một, cách nhau đúng khoảng thời gian bạn đặt.
+Bạn nhập **nhãn** (hashtag) và **số bài muốn đăng**. Nội dung thì công cụ tự bốc ngẫu nhiên từ kho 10.000 câu có sẵn — mỗi bài một câu khác nhau, không bài nào trùng bài nào.
 
-Nó cũng có thể **tự động retweet** các bài của người khác, kể cả tìm bài theo từ khoá.
+Cần biết trước:
 
-### Vài điều cần biết trước
-
-**Phải giữ tab X mở.** Công cụ này chạy ngay bên trong trình duyệt của bạn. Đóng tab X là nó dừng. Bạn vẫn mở tab khác, làm việc khác bình thường — chỉ cần đừng đóng tab X là được.
-
-**Máy tính phải bật.** Máy tắt hoặc ngủ thì nó cũng dừng.
-
-**Nó đăng bằng chính tài khoản bạn đang đăng nhập.** Không cần nhập mật khẩu vào đâu cả.
+- **Phải giữ tab X mở và máy bật.** Đóng tab hoặc tắt máy là nó dừng. Mở tab khác làm việc khác thì bình thường.
+- **Đăng bằng chính tài khoản bạn đang đăng nhập.** Không cần nhập mật khẩu vào đâu cả.
 
 ---
 
-## 2. Tải về và giải nén
+## 2. Cài đặt
 
-Công cụ được để công khai trên GitHub — bạn tải trực tiếp, không cần tài khoản, không cần ai gửi file.
+### Tải về
 
-### Bước 1 — Mở trang tải
+Vào **https://github.com/dangtthuynhi/twitter-tweet**, bấm nút xanh **`< > Code`** ở trên bên phải, chọn **"Download ZIP"**.
 
-Bấm vào link này (hoặc chép vào thanh địa chỉ trình duyệt):
-
-**https://github.com/dangtthuynhi/twitter-tweet**
-
-Trang hiện ra có nhiều tên file — đừng bận tâm, bạn không cần đọc gì ở đó.
-
-### Bước 2 — Tải xuống
-
-Tìm nút màu **xanh lá** có chữ **`< > Code`** ở phía trên bên phải danh sách file. Bấm vào nó.
-
-Một khung nhỏ xổ xuống. Bấm dòng cuối cùng: **"Download ZIP"**.
-
-> **Cách nhanh hơn:** dán thẳng link này vào thanh địa chỉ, file sẽ tải ngay:
+> Nhanh hơn: dán link này vào thanh địa chỉ, file tải ngay
 > `https://github.com/dangtthuynhi/twitter-tweet/archive/refs/heads/master.zip`
 
-File tên **`twitter-tweet-master.zip`** sẽ được lưu vào thư mục **Tải xuống** (Downloads).
+Giải nén vào một thư mục cố định, ví dụ trong **Tài liệu** (Documents).
 
-### Bước 3 — Tạo chỗ để cất
+> **Đừng để trong thư mục Tải xuống.** Chrome đọc trực tiếp từ thư mục này mỗi lần bạn mở X — lỡ tay xoá đi dọn dẹp là công cụ ngừng chạy.
 
-Trước khi giải nén, hãy tạo một thư mục cố định.
-
-**Cách dễ nhất:** mở thư mục **Tài liệu** (Documents), tạo thư mục mới tên `X-Auto-Poster`.
-
-> Tại sao cần bước này? Vì sau khi cài, Chrome sẽ **đọc trực tiếp từ thư mục đó mỗi lần bạn mở X**. Nếu để trong thư mục Tải xuống rồi lỡ tay xoá đi dọn dẹp, công cụ sẽ ngừng hoạt động. Để ở Tài liệu thì an toàn hơn nhiều.
-
-### Bước 4 — Giải nén
-
-**Trên Windows:**
-
-1. Mở thư mục Tải xuống, tìm file `twitter-tweet-master.zip`
-2. Bấm **chuột phải** → chọn **"Extract All..."** (hoặc "Giải nén tất cả")
-3. Cửa sổ hiện ra hỏi giải nén vào đâu — bấm **Browse**, chọn thư mục `X-Auto-Poster` bạn vừa tạo
-4. Bấm **Extract**
-
-**Trên Mac:**
-
-1. Mở thư mục Tải xuống (Downloads)
-2. **Bấm đúp** vào file zip — máy tự giải nén ngay cạnh đó
-3. Kéo thư mục vừa hiện ra vào `X-Auto-Poster` ở Tài liệu
-
-### Bước 5 — Tìm đúng thư mục cần dùng
-
-Đây là chỗ dễ nhầm nhất, đọc kỹ một chút.
-
-Sau khi giải nén bạn được một thư mục tên **`twitter-tweet-master`**. Mở nó ra, bên trong có rất nhiều thứ:
+Mở thư mục vừa giải nén, tìm thư mục con tên **`chrome-extension`**. Chỉ cần đúng thư mục này, bên trong phải có:
 
 ```
-twitter-tweet-master
-   ├── browser-script
-   ├── chrome-extension      ← CHỈ CẦN CÁI NÀY
-   ├── content
-   ├── src
-   ├── HUONG-DAN-SU-DUNG.md
-   ├── README.md
-   └── package.json
+content.js
+content-lenamiu.json
+manifest.json
 ```
 
-Bạn **chỉ cần thư mục `chrome-extension`**. Tất cả những thứ còn lại là mã nguồn dành cho lập trình viên, bỏ qua hoàn toàn.
+### Cài vào Chrome
 
-Mở thử `chrome-extension` để kiểm tra, bên trong phải có:
+1. Gõ `chrome://extensions` vào thanh địa chỉ rồi Enter *(phải gõ tay, Google không tìm ra)*
+2. Bật công tắc **"Chế độ dành cho nhà phát triển"** ở góc trên bên phải
+3. Bấm **"Tải tiện ích đã giải nén"**, chọn thư mục **`chrome-extension`**
 
-```
-chrome-extension
-   ├── content.js
-   ├── manifest.json
-   └── README.md
-```
+> Chọn *cả thư mục*, đừng mở nó ra rồi chọn file bên trong.
 
-Thấy đúng như vậy là được. **Ghi nhớ đường dẫn tới thư mục `chrome-extension` này** — bước cài đặt sau cần tới.
+Hiện ra ô **"X Auto Poster 1.0.0"** là xong.
 
-> Nếu bấm đúp vào file zip mà chỉ thấy duyệt được nội dung bên trong chứ chưa có thư mục mới nào hiện ra, nghĩa là bạn mới chỉ *xem trộm* trong hộp thôi. Phải dùng "Extract All" như hướng dẫn trên.
+Mở **x.com**, đợi khoảng 2 giây, bảng điều khiển màu xám đậm hiện ở **góc dưới bên phải**. Không thấy thì nhấn **F5**.
 
 ---
 
-## 3. Cài đặt
+## 3. Cách dùng
 
-Bạn cần trình duyệt **Google Chrome**. Nếu máy chưa có, tải ở [google.com/chrome](https://www.google.com/chrome/).
+> **1.** Gõ nhãn vào ô lớn trên cùng
+> **2.** Nhập số bài muốn đăng
+> **3.** Bấm **"Bắt đầu"**
+> **4.** Để yên đó
 
-### Bước 1 — Mở trang quản lý tiện ích
+### Nhãn
 
-Mở Chrome. Gõ dòng này vào thanh địa chỉ ở trên cùng rồi nhấn Enter:
-
-```
-chrome://extensions
-```
-
-*Lưu ý: phải gõ tay, không tìm được bằng Google.*
-
-### Bước 2 — Bật chế độ nhà phát triển
-
-Nhìn **góc trên bên phải** màn hình, có một công tắc tên **"Chế độ dành cho nhà phát triển"**. Gạt cho nó sáng lên.
-
-Nghe có vẻ đáng sợ nhưng không sao cả — đây chỉ là cách Chrome cho phép cài công cụ không lấy từ cửa hàng của Google.
-
-Bật xong bạn sẽ thấy xuất hiện thêm ba nút ở phía trên.
-
-### Bước 3 — Nạp công cụ vào
-
-Bấm nút **"Tải tiện ích đã giải nén"**.
-
-> Đừng bấm nhầm nút "Đóng gói tiện ích" bên cạnh — nút đó dùng cho việc khác.
-
-Một cửa sổ chọn thư mục hiện ra. Đi theo đường dẫn bạn đã giải nén ở phần 2:
+**Mỗi dòng một nhãn**, và **tất cả các dòng nằm chung trong mọi bài đăng**:
 
 ```
-Tài liệu → X-Auto-Poster → twitter-tweet-master → chrome-extension
+LENAMIU AT FLEX
+#Flex1045xPLSLoveรักได้ไหม
+#LenaMiu #ลีน่าหมิว
 ```
 
-Chọn thư mục **`chrome-extension`** rồi bấm **Select Folder** (hoặc **Open** trên Mac).
+Ba dòng trên **không** thành ba bài. Chúng là một cụm, gắn vào từng bài một.
 
-**Quan trọng:** chọn *cả thư mục* `chrome-extension`, đừng mở nó ra rồi chọn file `content.js` hay `manifest.json` bên trong.
+Gõ gì cũng được — chữ hoa, chữ thường, tiếng Thái, emoji. Không bắt buộc có dấu `#`.
 
-### Bước 4 — Kiểm tra
-
-Nếu thành công, bạn sẽ thấy một ô mới hiện ra với chữ:
+### Bài đăng ra trông thế nào
 
 ```
-X Auto Poster          1.0.0
+LenaMiu's warmth brightens my whole week 🌟     ← câu bốc ngẫu nhiên
+22:16 02-10-2026                                ← ngày giờ
+LENAMIU AT FLEX                                 ← nhãn của bạn
+#Flex1045xPLSLoveรักได้ไหม
+#LenaMiu #ลีน่าหมิว
 ```
 
-Xong rồi. Không cần làm gì thêm ở trang này.
+### Các ô cài đặt
 
----
-
-## 4. Lần đầu sử dụng
-
-Mở **x.com** và đăng nhập như bình thường.
-
-Đợi khoảng 2 giây, một **bảng điều khiển màu xám đậm** sẽ hiện ra ở **góc dưới bên phải** màn hình.
-
-Nếu không thấy, thử tải lại trang (nhấn F5).
-
-Bảng này có thể thu gọn lại bằng cách bấm vào thanh tiêu đề "X Auto Poster" ở trên cùng của nó.
-
----
-
-## 5. Đăng bài tự động
-
-### Viết danh sách bài
-
-Ô lớn ở trên cùng là nơi bạn viết các bài muốn đăng. **Mỗi dòng là một bài:**
-
-```
-Chào buổi sáng mọi người
-Hôm nay trời đẹp quá
-Cuối tuần vui vẻ nhé
-```
-
-Ba dòng này sẽ thành ba bài đăng riêng biệt.
-
-### Nếu bài cần xuống dòng
-
-Khi một bài của bạn dài và cần xuống dòng, hãy dùng **ba dấu gạch ngang** `---` trên một dòng riêng để ngăn cách các bài:
-
-```
-Bài ngắn bình thường
-
----
-
-Ba điều học được hôm nay:
-
-1. Điều thứ nhất
-2. Điều thứ hai
-3. Điều thứ ba
-
----
-
-Bài cuối cùng
-```
-
-Chỉ cần có một dòng `---` là công cụ tự hiểu bạn đang dùng cách này.
-
-### Cài đặt thời gian
-
-Ngay dưới ô nhập bài:
-
-**"Cách nhau ... đến ... phút"** — công cụ sẽ chờ ngẫu nhiên trong khoảng này giữa hai bài. Ví dụ đặt 15 và 45 thì có bài cách nhau 20 phút, bài khác cách nhau 38 phút.
-
-Đừng đặt quá ngắn. Đăng liên tục vài phút một bài là cách nhanh nhất để X cho rằng bạn là máy và khoá tài khoản.
-
-**"Tối đa ... bài/ngày"** — đăng đủ số này là nghỉ đến hôm sau.
-
-**"Chỉ đăng từ ... đến ... giờ"** — ví dụ 7 và 23 thì nó chỉ đăng trong ngày, không đăng lúc nửa đêm. Tài khoản đăng bài đều đặn lúc 3 giờ sáng trông rất bất thường.
-
-**"Nhịp tự nhiên"** — nên để bật. Nó làm khoảng cách giữa các bài trông giống người thật hơn.
-
-**"Lặp lại"** — bật thì đăng hết danh sách sẽ quay lại đăng từ đầu. Thường nên tắt.
-
-### Bắt đầu
-
-Bấm nút xanh **"Bắt đầu"**.
-
-Dòng chữ ở giữa bảng sẽ đổi thành:
-
-```
-● Đang chạy — bài kế tiếp sau 18:42
-Đã đăng 0/3 · hôm nay 0 bài
-```
-
-Con số đếm ngược cho biết còn bao lâu tới bài tiếp theo.
-
-Khi tới giờ, màn hình sẽ tự mở ô soạn bài, tự gõ chữ và tự bấm đăng. **Đừng đụng vào chuột lúc đó**, để nó làm xong khoảng 5 giây.
-
-### Dừng lại
-
-Bấm nút đỏ **"Dừng"** bất cứ lúc nào.
-
----
-
-## 6. Retweet
-
-### Retweet một bài cụ thể
-
-Vào bài muốn retweet, nhìn lên thanh địa chỉ, bạn sẽ thấy dạng:
-
-```
-https://x.com/tennguoidung/status/1234567890123456789
-```
-
-Dãy số dài ở cuối chính là mã bài viết. Chép dãy số đó vào danh sách, thêm chữ `rt:` phía trước:
-
-```
-rt:1234567890123456789
-```
-
-Bạn trộn chung với bài thường cũng được:
-
-```
-Chào buổi sáng
-rt:1234567890123456789
-Một bài nữa của mình
-```
-
-### Tìm bài để retweet theo từ khoá
-
-Bấm vào dòng **"🔎 Tìm theo từ khoá"** để mở phần này ra.
-
-**Ô từ khoá** — gõ thứ bạn muốn tìm, ví dụ `#dulich` hoặc `cà phê sài gòn`.
-
-**Ô loại trừ** — gõ các từ bạn KHÔNG muốn thấy, cách nhau bằng dấu phẩy. Ví dụ `quảng cáo, giveaway`.
-
-**"Tối thiểu ... like"** — bỏ qua các bài chưa ai thích. Đây là bộ lọc hữu ích nhất: kết quả tìm kiếm trên X có rất nhiều bài rác, đặt 5 hoặc 10 là lọc được phần lớn.
-
-**"Lấy ... bài"** — mỗi lần tìm lấy nhiều nhất bao nhiêu bài.
-
-**"Duyệt tay trước"** — nên để bật. Công cụ sẽ đưa danh sách bài tìm được để bạn xem và chọn, thay vì tự retweet hết.
-
-Bấm **"Tìm ngay"**. Màn hình chuyển sang trang kết quả rồi quay lại.
-
-Các bài tìm được hiện thành danh sách, mỗi bài có tên người đăng, số like và một đoạn nội dung. Với mỗi bài bạn bấm:
-
-- **Lấy** — thêm vào danh sách chờ đăng
-- **Bỏ** — không dùng bài này
-- **xem** — mở bài gốc ra tab mới để đọc kỹ
-
-Hoặc dùng **"Lấy hết"** / **"Bỏ hết"** cho nhanh.
-
----
-
-## 7. Bảng tra nhanh các nút
-
-| Nút / Ô | Tác dụng |
+| Ô | Nghĩa |
 |---|---|
-| Ô lớn trên cùng | Danh sách bài muốn đăng |
-| Cách nhau ... đến ... phút | Khoảng thời gian giữa hai bài |
-| Tối đa ... bài/ngày | Đăng đủ thì nghỉ tới hôm sau |
-| Chỉ đăng từ ... đến ... giờ | Khung giờ được phép đăng |
-| Nhịp tự nhiên | Làm thời gian trông giống người thật hơn |
-| Lặp lại | Hết danh sách thì quay lại từ đầu |
-| **Bắt đầu** | Chạy |
-| **Dừng** | Ngừng |
-| **Xoá lịch sử** | Quên các bài đã đăng, để đăng lại được |
-| Khung chữ nhỏ dưới cùng | Nhật ký hoạt động |
+| **Số tweet muốn đăng** | Soạn sẵn bao nhiêu bài |
+| **Cách nhau ... đến ... phút** | Chờ ngẫu nhiên trong khoảng này giữa hai bài |
+| **Tối đa ... bài/ngày** | Đủ số này thì nghỉ tới hôm sau |
+| **Chỉ đăng từ ... đến ... giờ** | Khung giờ được phép đăng. Để 7–23 thì không đăng lúc nửa đêm |
+| **Nhịp tự nhiên** | Nên bật. Làm khoảng cách giống người thật hơn |
+| **Lặp lại** | Hết danh sách thì quay lại từ đầu. Thường nên tắt |
+
+### Chạy
+
+Bấm nút xanh **"Bắt đầu"**. Dòng giữa bảng đổi thành:
+
+```
+● Đang chạy — bài kế tiếp sau 2:18
+Đã đăng 0/100 · hôm nay 0 bài
+```
+
+Tới giờ, màn hình tự mở ô soạn bài, tự gõ và tự đăng. **Đừng đụng chuột lúc đó**, để nó làm xong khoảng 5 giây.
+
+> Khoảng cách giữa hai bài có thể tới vài phút, im lìm một lúc là bình thường. **Đừng bấm "Bắt đầu" thêm lần nữa** — cứ nhìn số đếm ngược.
+
+**Đổi nhãn:** bấm **"Dừng"**, sửa nhãn, bấm **"Bắt đầu"** lại. Chỉnh các ô thời gian thì không cần dừng.
+
+**Dừng:** bấm nút đỏ **"Dừng"** bất cứ lúc nào.
 
 ---
 
-## 8. Những điều nên biết
+## 4. Tìm bài để retweet
 
-### Đừng đăng quá nhiều
+Bấm **"🔎 Tìm theo từ khoá"** để mở ra.
 
-X giới hạn **50 bài mỗi ngày** với tài khoản thường (chưa mua gói Premium). Vượt quá là bài không lên được.
+Nhập từ khoá (ví dụ `#dulich`), các từ muốn loại trừ, số like tối thiểu *(đặt 5–10 để lọc bài rác)*, rồi bấm **"Tìm ngay"**.
 
-Nhưng con số an toàn thấp hơn nhiều. Vài bài tới hơn chục bài một ngày, cách nhau vài chục phút, là hợp lý. Đăng dồn dập là cách nhanh nhất gặp rắc rối.
-
-### Retweet hàng loạt là vi phạm
-
-X cho phép retweet tự động ở mức vừa phải, nhưng **cấm rõ ràng** việc retweet hàng loạt. Đó là lý do công cụ mặc định bắt bạn duyệt tay — chọn vài bài thật sự hay thì an toàn, quét sạch mọi thứ khớp từ khoá thì không.
-
-### Nội dung nên khác nhau
-
-Đăng đi đăng lại nội dung giống nhau là dấu hiệu X để ý. Viết mỗi bài một kiểu.
-
-### Công cụ chỉ chạy trên X
-
-Nó không đọc, không can thiệp vào bất kỳ trang nào khác. Không lấy mật khẩu của bạn.
+Để **"Duyệt tay trước"** bật. Công cụ đưa danh sách bài tìm được, mỗi bài bạn bấm **Lấy** / **Bỏ** / **xem**.
 
 ---
 
-## 9. Khi gặp trục trặc
+## 5. Nên biết
 
-### Không thấy bảng điều khiển
+**Đừng đăng quá nhiều.** Công cụ để sẵn 100 bài/ngày cách nhau 1–4 phút — đó là số chạy thử. Dùng lâu dài nên hạ xuống: ít bài hơn, giãn cách vài chục phút. X cũng chỉ cho khoảng 50 bài/ngày với tài khoản thường.
 
-1. Kiểm tra bạn đang ở đúng trang **x.com** (không phải trang khác)
-2. Tải lại trang bằng phím **F5**
-3. Vào lại `chrome://extensions`, xem ô "X Auto Poster" còn bật không
-4. Nếu ô đó có nút **"Lỗi"** màu đỏ, bấm vào chụp màn hình gửi người hỗ trợ bạn
+**Retweet hàng loạt là vi phạm.** X cấm rõ việc này — đó là lý do nên để "Duyệt tay trước" bật.
 
-### Bài không đăng được
-
-Xem khung nhật ký ở dưới cùng bảng điều khiển. Vài thông báo thường gặp:
-
-| Thông báo | Nghĩa là | Làm gì |
-|---|---|---|
-| `Da dang: ...` | Thành công | Không cần làm gì |
-| `Het bai trong hang doi` | Đăng hết rồi | Thêm bài mới vào |
-| `Da du ... bai hom nay` | Chạm giới hạn ngày | Đợi hôm sau |
-| `Khong thay element ...` | X đã đổi giao diện | Báo người hỗ trợ bạn |
-| `Bai nay da duoc retweet truoc do` | Bạn đã retweet rồi | Bình thường, nó bỏ qua |
-
-### Đang gõ mà số bị nhảy
-
-Đã sửa ở bản mới. Nếu vẫn bị, bạn đang dùng bản cũ — nhờ người hỗ trợ cập nhật giúp.
-
-### Muốn đăng lại các bài cũ
-
-Bấm **"Xoá lịch sử"**. Công cụ sẽ quên các bài đã đăng và đăng lại từ đầu.
+**Công cụ chỉ chạy trên X.** Không đụng tới trang nào khác, không lấy mật khẩu.
 
 ---
 
-## 10. Câu hỏi thường gặp
+## 6. Khi gặp trục trặc
 
-**Tắt máy tính thì sao?**
-Nó dừng. Bật lại, mở x.com rồi bấm "Bắt đầu" là chạy tiếp từ chỗ dừng. Danh sách và cài đặt vẫn còn nguyên.
+**Không thấy bảng điều khiển** — Kiểm tra đang ở đúng x.com → nhấn F5 → vào `chrome://extensions` xem ô "X Auto Poster" còn bật không.
 
-**Đóng tab X thì sao?**
-Cũng dừng. Mở lại rồi bấm "Bắt đầu".
+**Bấm Bắt đầu mà báo hàng đợi trống** — Bạn chưa nhập nhãn.
 
-**Tôi có thể dùng máy tính làm việc khác không?**
-Được. Chỉ cần đừng đóng tab X. Mở bao nhiêu tab khác cũng không sao.
+**Bấm Bắt đầu rồi mà mãi không đăng** — Nhìn số đếm ngược giữa bảng. Đang đếm thì cứ để yên.
 
-**Nó có đăng khi tôi đang dùng X không?**
-Có. Tới giờ là nó tự mở ô soạn bài. Nếu đang gõ dở gì đó thì hơi phiền, nên tốt nhất để tab X yên một chỗ.
+**Đang chạy thì tự dừng** — Xem dòng cuối khung nhật ký ở đáy bảng: đủ số bài hôm nay thì đợi mai, hết bài thì nhập nhãn mới.
+
+**X chặn không cho đăng** — Thỉnh thoảng X hiện hộp thoại bắt xác minh. Mở x.com tự tay đăng thử một bài, làm xong yêu cầu của X rồi bấm "Bắt đầu" lại. Vẫn hỏng thì nghỉ vài tiếng và hạ số bài/ngày xuống.
+
+**Nhật ký nhắc tới `content-lenamiu.json`** — Thiếu file kho câu. Kiểm tra thư mục `chrome-extension` có file đó không, thiếu thì giải nén lại rồi vào `chrome://extensions` bấm **Tải lại** (↻).
+
+**Muốn dùng lại các câu đã đăng** — Bấm **"Xoá lịch sử"**. Thường không cần, vì 10.000 câu là rất nhiều.
+
+---
+
+## 7. Hỏi đáp
+
+**Các bài có trùng nội dung nhau không?**
+Không. Công cụ nhớ những câu đã dùng nên không lấy lại.
+
+**Tắt máy hoặc đóng tab X thì sao?**
+Nó dừng. Mở lại x.com rồi bấm "Bắt đầu" là chạy tiếp. Nhãn và cài đặt vẫn còn.
+
+**Dùng máy làm việc khác được không?**
+Được, chỉ cần đừng đóng tab X.
 
 **Có mất phí không?**
-Không. Hoàn toàn miễn phí.
+Không.
 
-**Có an toàn cho tài khoản không?**
-Nếu dùng chừng mực — vài bài một ngày, cách nhau vài chục phút, nội dung khác nhau — thì rủi ro thấp. Đăng dồn dập hoặc retweet hàng loạt thì có thể bị X hạn chế.
+**Dùng cho nhiều tài khoản được không?**
+Công cụ đăng bằng tài khoản đang đăng nhập. Muốn đổi thì đăng xuất rồi đăng nhập tài khoản khác.
 
-**Tôi dùng được cho nhiều tài khoản không?**
-Công cụ đăng bằng tài khoản bạn đang đăng nhập. Muốn đổi thì đăng xuất rồi đăng nhập tài khoản khác.
+**Lỡ xoá thư mục đã giải nén?**
+Giải nén lại vào thư mục cố định rồi cài lại theo phần 2. Nhãn và cài đặt không mất.
 
-**Tôi lỡ xoá thư mục đã giải nén rồi, sao giờ?**
-Công cụ sẽ ngừng chạy. Giải nén lại file zip vào thư mục cố định, rồi cài lại từ đầu theo phần 3. Danh sách bài và cài đặt của bạn vẫn còn, không mất.
+**Có bản mới thì cập nhật thế nào?**
+Tải lại zip, giải nén đè lên thư mục cũ, vào `chrome://extensions` bấm **Tải lại** (↻), rồi tải lại tab X.
 
-**Có được đổi tên hay di chuyển thư mục sau khi cài không?**
-Không nên. Chrome ghi nhớ đường dẫn cũ, đổi chỗ là nó không tìm thấy nữa. Nếu lỡ chuyển rồi thì vào `chrome://extensions` xoá đi và cài lại.
-
-**Làm sao cập nhật khi có bản mới?**
-Tải lại file zip từ cùng link ở phần 2, giải nén đè lên thư mục cũ (chọn "Replace" khi máy hỏi). Rồi vào `chrome://extensions`, bấm nút **Tải lại** (biểu tượng ↻) trên ô "X Auto Poster", và tải lại tab X. Không phải cài lại từ đầu, danh sách bài vẫn còn.
-
-**Xoá công cụ đi thế nào?**
+**Gỡ công cụ đi thế nào?**
 Vào `chrome://extensions`, tìm ô "X Auto Poster", bấm **"Xoá"**.
