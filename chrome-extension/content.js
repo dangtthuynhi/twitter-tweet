@@ -35,8 +35,10 @@
     nextAt: 0,
     log: [],
     candidates: [],     // ket qua tim duoc, cho duyet tay
+    queueSig: '',       // label+so luong da dung de dung hang doi hien tai
     settings: {
       labels: '',       // text o nhap label, giu qua cac lan nap lai trang
+      quantity: 100,    // moi lan dung hang doi thi sinh bao nhieu tweet
       gapMin: 1,        // cach nhau it nhat bao nhieu phut
       gapMax: 4,        // nhieu nhat bao nhieu phut
       maxPerDay: 100,
@@ -717,7 +719,7 @@
       return items;
     }
 
-    const quantity = Math.max(1, parseInt($('xap-content-quantity').value, 10) || 1);
+    const quantity = state.settings.quantity;
     const labelKey = labelLines.join(' ').toLowerCase();
 
     // Chi tru nhung content da dang kem dung nhom label nay
@@ -747,10 +749,19 @@
   }
 
   function syncFromUI() {
-    // Retweet do khung duyet day vao khong den tu o nhap, phai giu lai.
-    const retweets = state.queue.filter((i) => i.type === 'retweet');
     state.settings.labels = $('xap-queue').value;
-    state.queue = [...retweets, ...parseQueue(state.settings.labels)];
+    state.settings.quantity = Math.max(1, parseInt($('xap-content-quantity').value, 10) || 1);
+    // Chi dung lai hang doi khi label hoac so luong that su doi. Neu dung lai moi
+    // lan goi thi tung phim go — va ca nut Bat dau — deu boc lai 100 noi dung
+    // ngau nhien khac, lam bo dem tien do nhay ve 0 du dang dang do.
+    const sig = `${state.settings.labels}\u0000${state.settings.quantity}`;
+    if (sig !== state.queueSig) {
+      state.queueSig = sig;
+      // Retweet do khung duyet day vao khong den tu o nhap, phai giu lai.
+      const retweets = state.queue.filter((i) => i.type === 'retweet');
+      state.queue = [...retweets, ...parseQueue(state.settings.labels)];
+      state.cursor = 0;
+    }
     // Khong ep sang so o day. O dang go do ("" hoac "3") ma bi ep ve mac dinh
     // se nhay so ngay truoc mat. Chi doc thoi; viec kep khoang de luc dung toi.
     const num = (id, def) => {
@@ -856,6 +867,7 @@
     // Ghi lai dung text nguoi dung da go (khong phai gia tri suy ra tu hang doi,
     // lam vay se nuot xuong dong va ha chu thuong cua label goc).
     setVal('xap-queue', state.settings.labels);
+    setVal('xap-content-quantity', state.settings.quantity);
     setVal('xap-gapmin', state.settings.gapMin);
     setVal('xap-gapmax', state.settings.gapMax);
     setVal('xap-max', state.settings.maxPerDay);
