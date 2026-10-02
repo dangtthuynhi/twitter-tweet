@@ -8,7 +8,8 @@ Bạn nhập **nhãn** (hashtag) và **số bài muốn đăng**. Nội dung th�
 
 Cần biết trước:
 
-- **Phải giữ tab X mở và máy bật.** Đóng tab hoặc tắt máy là nó dừng. Mở tab khác làm việc khác thì bình thường.
+- **Phải giữ tab X mở và máy bật.** Đóng tab hoặc tắt máy là nó dừng.
+- **Nên để tab X hiện trên màn hình.** Chrome làm chậm các tab bị che khuất, nên để tab X chạy ngầm phía sau thì công cụ dễ đăng hụt. Tốt nhất mở X ở một cửa sổ riêng và để nó nằm đó.
 - **Đăng bằng chính tài khoản bạn đang đăng nhập.** Không cần nhập mật khẩu vào đâu cả.
 
 ---
@@ -156,7 +157,7 @@ Không. Công cụ nhớ những câu đã dùng nên không lấy lại.
 Nó dừng. Mở lại x.com rồi bấm "Bắt đầu" là chạy tiếp. Nhãn và cài đặt vẫn còn.
 
 **Dùng máy làm việc khác được không?**
-Được, chỉ cần đừng đóng tab X.
+Được, nhưng đừng để tab X bị che khuất quá lâu — Chrome làm chậm các tab chạy ngầm và công cụ sẽ đăng hụt. Cách gọn nhất là mở X ra một cửa sổ riêng, để nó ở một góc màn hình.
 
 **Có mất phí không?**
 Không.

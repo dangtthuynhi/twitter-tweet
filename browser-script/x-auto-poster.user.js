@@ -564,7 +564,6 @@
       state.pending = null;
       const seen = describeOverlay();
       addLog(`Loi: ${e.message}${seen ? ` — man hinh dang hien: "${seen}"` : ''}`, 'err');
-      await dismissOverlays();
 
       // Bo han bai nay. Khong bo thi pickNext() tra lai dung no o luot sau,
       // gap lai dung hop thoai do, va ket cung o day mai.
@@ -580,7 +579,12 @@
         save(state);
         render();
       } else {
+        // Hop thoai cua X (canh bao trung bai, thu thach xac minh...) khong tu
+        // mat. Tai lai trang la cach chac chan nhat de co lai DOM sach, thay vi
+        // do bam dung nut dong.
         scheduleNext();
+        addLog('Tai lai trang cho sach roi chay tiep.', 'warn');
+        location.reload();
       }
     } finally {
       busy = false;
