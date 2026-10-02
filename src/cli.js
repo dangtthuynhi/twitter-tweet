@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import path from 'node:path';
+import fsSync from 'node:fs';
 import { config, assertConfig, effectiveInterval, windowMs } from './config.js';
 import { log } from './logger.js';
 import { hash, humanDuration, tweetLength, redact } from './util.js';
@@ -16,6 +17,7 @@ import { scanAll } from './hashtag.js';
 import { buildDashboard } from './dashboard.js';
 import { fetchAllReplies, saveReplies, summarize, parseTweetId,
          fetchAllRetweeters, saveRetweeters } from './replies.js';
+import { checkEntry, resolveEntries, saveEntries } from './giveaway.js';
 import { totp, validateSecret } from './totp.js';
 import { parseDuration } from './util.js';
 
@@ -48,6 +50,12 @@ Lenh:
                          [--max N] tran so reply (mac dinh 500)
                          [--format json|csv|both]
   retweeters <link|id>   Lay danh sach nguoi da retweet 1 bai
+  giveaway <link|id>     Loc entry hop le theo the le GA
+                         [--min N] [--max N] so cho phep (mac dinh 0-2511)
+                         [--msg N] do dai loi nhan toi thieu (15)
+                         [--followers N] follower toi thieu (20)
+                         [--keyword "..."] [--hashtag "#..."]
+                         [--cached] dung du lieu da tai, khong goi API
   totp [secret]          In ma 2FA tu TW_TOTP_SECRET de doi chieu voi app
   watch [--force]        Quet 1 lan cac account dang theo doi, tim bai moi
   queue                  Xem hang doi retweet dang cho
@@ -319,6 +327,85 @@ async function main() {
         for (const u of sorted.slice(0, 5)) log.plain(`      @${u.userName} — ${(u.followers || 0).toLocaleString()} follower`);
       }
       log.plain(`\n  Da luu: ${files.map((f) => f.replace(process.cwd() + '/', '')).join(', ')}`);
+      break;
+    }
+    case 'giveaway': {
+      assertConfig({ needAccount: false });
+      const target = opts._[0];
+      if (!target) { log.error('Thieu link hoac ID bai viet.'); process.exitCode = 1; break; }
+      const id = parseTweetId(target);
+      const dir = 'data/replies';
+      const fRep = `${dir}/${id}.json`, fRt = `${dir}/${id}-retweeters.json`;
+
+      let replies, retweeters;
+      if (opts.cached && fsSync.existsSync(fRep) && fsSync.existsSync(fRt)) {
+        replies = JSON.parse(fsSync.readFileSync(fRep, 'utf8'));
+        retweeters = JSON.parse(fsSync.readFileSync(fRt, 'utf8'));
+        log.info(`Dung du lieu da tai: ${replies.length} comment, ${retweeters.length} retweeter`);
+      } else {
+        log.info('Dang tai du lieu moi nhat...');
+        const r1 = await fetchAllReplies(target, { max: Number(opts.maxreplies) || 2000,
+          onPage: ({ page, total }) => log.info(`  comment trang ${page}: ${total}`) });
+        saveReplies(id, r1.replies);
+        const r2 = await fetchAllRetweeters(target, { max: Number(opts.maxrt) || 3000,
+          onPage: ({ page, total }) => log.info(`  retweeter trang ${page}: ${total}`) });
+        saveRetweeters(id, r2.users);
+        replies = JSON.parse(fsSync.readFileSync(fRep, 'utf8'));
+        retweeters = JSON.parse(fsSync.readFileSync(fRt, 'utf8'));
+        log.info(`Chi phi tai du lieu: $${(r1.cost + r2.users.length * 0.00015).toFixed(4)}`);
+      }
+
+      const rules = {
+        numberMin: opts.min != null ? Number(opts.min) : 0,
+        numberMax: opts.max != null ? Number(opts.max) : 2511,
+        minMessage: Number(opts.msg) || 15,
+        minFollowers: opts.followers != null ? Number(opts.followers) : 20,
+        keyword: opts.keyword ?? 'LENAMIU PLS LOVE EP3',
+        hashtag: opts.hashtag ?? '#PlsLoveรักได้ไหมEP3',
+      };
+      const rtSet = new Set(retweeters.map((u) => (u.userName || '').toLowerCase()));
+      const entries = replies.map((r) => checkEntry(r, rules, rtSet));
+      const { accepted, duplicates } = resolveEntries(entries);
+
+      log.plain(`\n=== The le dang ap dung ===`);
+      log.plain(`  So       : ${rules.numberMin}–${rules.numberMax}`);
+      log.plain(`  Loi nhan : >= ${rules.minMessage} ky tu`);
+      log.plain(`  Keyword  : ${rules.keyword}`);
+      log.plain(`  Hashtag  : ${rules.hashtag}`);
+      log.plain(`  Follower : >= ${rules.minFollowers}`);
+
+      const reasons = {};
+      for (const e of entries) for (const f of e.failed) reasons[f] = (reasons[f] || 0) + 1;
+      const LABEL = { retweeted: 'chua retweet', number: 'khong co so hop le',
+        message: 'loi nhan < ' + rules.minMessage + ' ky tu', keyword: 'thieu keyword',
+        hashtag: 'thieu hashtag', followers: 'duoi ' + rules.minFollowers + ' follower' };
+
+      log.plain(`\n=== Ket qua: ${entries.length} comment ===`);
+      log.plain(`  Hop le va duoc nhan : ${accepted.length}`);
+      if (duplicates.length) log.plain(`  Bi loai do trung so : ${duplicates.length}`);
+      log.plain(`  Khong hop le        : ${entries.filter((e) => !e.valid).length}`);
+      log.plain('\n  Ly do bi loai:');
+      for (const [k, v] of Object.entries(reasons).sort((a, b) => b[1] - a[1]))
+        log.plain(`    ${(LABEL[k] || k).padEnd(28)} ${v}`);
+
+      if (accepted.length) {
+        log.plain(`\n=== Danh sach hop le (theo thu tu comment) ===`);
+        log.plain(`  ${'#'.padStart(3)}  ${'So'.padStart(4)}  ${'Tai khoan'.padEnd(20)} ${'Fl'.padStart(6)}  Loi nhan`);
+        accepted.forEach((e, i) =>
+          log.plain(`  ${String(i + 1).padStart(3)}  ${String(e.number).padStart(4)}  @${(e.author || '?').padEnd(19)} ${String(e.followers).padStart(6)}  ${e.message.slice(0, 44)}`));
+      }
+      if (duplicates.length) {
+        log.plain(`\n=== Trung so (uu tien nguoi comment som hon) ===`);
+        for (const d of duplicates)
+          log.plain(`  so ${String(d.winner.number).padStart(4)}: @${d.winner.author} (som hon)  >  @${d.loser.author}`);
+      }
+
+      const out = saveEntries(accepted, `${dir}/${id}-hople.csv`);
+      const outAll = saveEntries(entries, `${dir}/${id}-tatca.csv`);
+      log.plain(`\n  Da luu: ${out.replace(process.cwd() + '/', '')}`);
+      log.plain(`          ${outAll.replace(process.cwd() + '/', '')} (ca khong hop le, de doi chieu)`);
+      log.plain(`\n  ⚠️  Chua kiem tra duoc: co follow @LenaMiu_CH3 @miunatshaa @lena__lorena khong,`);
+      log.plain(`      va co hoat dong lien quan 7-10 ngay gan day khong. Hai muc do can goi them API.`);
       break;
     }
     case 'dashboard':

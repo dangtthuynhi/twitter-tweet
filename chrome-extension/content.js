@@ -29,16 +29,22 @@
     queue: [],          // [{type:'tweet', text}] hoac [{type:'retweet', id}]
     cursor: 0,
     posted: [],         // dau van tay cac bai da dang, chong trung
+    postedHashtags: [],  // danh sach hashtag da dang, chong trung
+    postedContent: [],   // [{hashtag, contentIndex}, ...] de chong trung content
+    contentData: [],     // noi dung duoc load tu file
     perDay: {},         // { '2026-09-23': 5 }
     pending: null,      // viec dang lam do dang qua lan nap trang
     nextAt: 0,
     log: [],
     candidates: [],     // ket qua tim duoc, cho duyet tay
     settings: {
-      gapMin: 15,       // cach nhau it nhat bao nhieu phut
-      gapMax: 45,       // nhieu nhat bao nhieu phut
-      maxPerDay: 30,
+      gapMin: 1,        // cach nhau it nhat bao nhieu phut
+      gapMax: 4,        // nhieu nhat bao nhieu phut
+      maxPerDay: 100,
       loop: false,      // het queue thi quay lai tu dau
+      // --- hashtag mode ---
+      hashtagMode: false,  // chi nhap hashtag, tu dong them noi dung
+      contentTemplate: 'Check this out: {hashtag} #interesting',  // template voi {hashtag}
       // --- tim theo tu khoa ---
       keyword: '',
       excludeWords: '',
@@ -349,6 +355,12 @@
         addLog(`Da retweet: ${job.id}`, 'ok');
       }
       state.posted.push(fingerprint(job));
+      if (job.hashtag) {
+        state.postedHashtags.push(job.hashtag);
+        if (job.contentIndex != null) {
+          state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
+        }
+      }
       state.perDay[today()] = countToday() + 1;
       state.cursor = job.index + 1;
     } catch (e) {
@@ -498,6 +510,12 @@
 
   function finishJob(job, msg) {
     state.posted.push(fingerprint(job));
+    if (job.hashtag) {
+      state.postedHashtags.push(job.hashtag);
+      if (job.contentIndex != null) {
+        state.postedContent.push({ hashtag: job.hashtag, contentIndex: job.contentIndex });
+      }
+    }
     state.perDay[today()] = countToday() + 1;
     state.cursor = job.index + 1;
     addLog(msg, 'ok');
@@ -507,49 +525,55 @@
   // ---------------------------------------------------------------- giao dien
 
   const PANEL_CSS = `
-        #xap-panel{position:fixed;right:16px;bottom:16px;width:330px;z-index:2147483647;
+        #xap-panel{position:fixed;right:16px;bottom:16px;width:340px;z-index:2147483647;
           background:#15202b;color:#e7e9ea;border:1px solid #38444d;border-radius:12px;
-          font:13px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.5)}
+          font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+          box-shadow:0 8px 28px rgba(0,0,0,.5);font-feature-settings:'kern' 1}
         #xap-panel header{display:flex;align-items:center;justify-content:space-between;
-          padding:10px 12px;border-bottom:1px solid #38444d;cursor:pointer}
-        #xap-panel h3{margin:0;font-size:13px;font-weight:700}
-        #xap-body{padding:12px;display:block}
+          padding:12px 14px;border-bottom:1px solid #38444d;cursor:pointer}
+        #xap-panel h3{margin:0;font-size:14px;font-weight:700;letter-spacing:0.3px}
+        #xap-body{padding:14px;display:block}
         #xap-panel.collapsed #xap-body{display:none}
         #xap-panel textarea{width:100%;height:96px;background:#0f1419;color:#e7e9ea;
-          border:1px solid #38444d;border-radius:8px;padding:8px;font:12px/1.4 monospace;resize:vertical}
+          border:1px solid #38444d;border-radius:8px;padding:10px;
+          font:13px/1.5 'Monaco','Menlo','Ubuntu Mono','Courier New',monospace;resize:vertical;
+          letter-spacing:0.2px;font-variant-numeric:tabular-nums}
         #xap-panel input{width:56px;background:#0f1419;color:#e7e9ea;border:1px solid #38444d;
-          border-radius:6px;padding:4px 6px;font-size:12px}
-        #xap-panel button{border:0;border-radius:999px;padding:7px 14px;font-weight:700;
-          cursor:pointer;font-size:12px}
+          border-radius:6px;padding:6px 8px;font-size:13px;font-family:inherit;letter-spacing:0.3px}
+        #xap-panel button{border:0;border-radius:999px;padding:8px 16px;font-weight:700;
+          cursor:pointer;font-size:13px;letter-spacing:0.3px;font-family:inherit}
         .xap-go{background:#1d9bf0;color:#fff}
-        #xap-credit{margin-top:10px;padding-top:8px;border-top:1px solid #38444d;
-          font-size:11px;color:#8899a6;text-align:center}
+        #xap-credit{margin-top:12px;padding-top:10px;border-top:1px solid #38444d;
+          font-size:12px;color:#8899a6;text-align:center;letter-spacing:0.2px}
         #xap-credit a{color:#8899a6;text-decoration:none}
         #xap-credit a:hover{text-decoration:underline}
         .xap-stop{background:#f4212e;color:#fff}
         .xap-ghost{background:#273340;color:#e7e9ea}
-        #xap-status{padding:8px;background:#0f1419;border-radius:8px;margin:10px 0;font-size:12px}
-        #xap-log{max-height:110px;overflow:auto;font:11px/1.5 monospace;background:#0f1419;
-          border-radius:8px;padding:8px;margin-top:8px}
+        #xap-status{padding:10px;background:#0f1419;border-radius:8px;margin:10px 0;
+          font-size:13px;line-height:1.6}
+        #xap-log{max-height:110px;overflow:auto;font:12px/1.6 'Monaco','Menlo','Ubuntu Mono','Courier New',monospace;
+          background:#0f1419;border-radius:8px;padding:10px;margin-top:8px;letter-spacing:0.2px;
+          font-variant-numeric:tabular-nums}
         .xap-ok{color:#00ba7c}.xap-err{color:#f4212e}.xap-warn{color:#ffd400}
-        .xap-row{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
-        .xap-row label{font-size:12px;opacity:.75}
+        .xap-row{display:flex;gap:10px;align-items:center;margin:10px 0;flex-wrap:wrap}
+        .xap-row label{font-size:13px;opacity:.8;letter-spacing:0.2px}
         .xap-dim{opacity:.5;font-weight:400}
         .xap-dim2{opacity:.6}
-        .xap-sum{cursor:pointer;font-size:12px;opacity:.85}
+        .xap-sum{cursor:pointer;font-size:13px;opacity:.85;letter-spacing:0.2px}
         .xap-mv{margin:10px 0}
         .xap-w100{width:100%}
         .xap-wauto{width:auto}
         .xap-right{margin-left:auto}
-        .xap-cand{background:#0f1419;border-radius:8px;padding:8px;margin:8px 0}
-        .xap-cand-head{font-size:12px;margin-bottom:6px}
-        .xap-cand-item{border-top:1px solid #253341;padding:6px 0;font-size:11px}
-        .xap-cand-meta{opacity:.6}
-        .xap-cand-text{margin:2px 0}
-        .xap-mini{padding:3px 10px}
-        .xap-mini2{padding:2px 9px}
+        .xap-cand{background:#0f1419;border-radius:8px;padding:10px;margin:10px 0}
+        .xap-cand-head{font-size:13px;margin-bottom:8px;font-weight:600}
+        .xap-cand-item{border-top:1px solid #253341;padding:8px 0;font-size:12px}
+        .xap-cand-meta{opacity:.7;font-size:12px}
+        .xap-cand-text{margin:4px 0;font-size:12px;line-height:1.4}
+        .xap-mini{padding:4px 10px;font-size:12px}
+        .xap-mini2{padding:3px 9px;font-size:12px}
         .xap-ml{margin-left:8px}
-        .xap-link{color:#1d9bf0;margin-left:6px}
+        .xap-link{color:#1d9bf0;margin-left:6px;text-decoration:none;font-size:12px}
+        .xap-link:hover{text-decoration:underline}
         .xap-on{color:#00ba7c}
 `;
 
@@ -577,7 +601,34 @@
       <header id="xap-head"><h3>X Auto Poster <span class="xap-dim">v${VERSION}</span></h3>
         <span id="xap-toggle" class="xap-dim2">▾</span></header>
       <div id="xap-body">
-        <div class="xap-row"><label>Hang doi — moi dong 1 bai, hoac dung <code>---</code> de tach bai nhieu dong</label></div>
+        <div class="xap-row">
+          <label><input id="xap-hashtag-mode" type="checkbox" class="xap-wauto"> Chi nhap hashtag</label>
+        </div>
+        <div id="xap-normal-label" class="xap-row"><label>Hang doi — moi dong 1 bai, hoac dung <code>---</code> de tach bai nhieu dong</label></div>
+        <div id="xap-hashtag-label" style="display:none">
+          <div class="xap-row"><label>Chon che do noi dung:</label></div>
+          <div class="xap-row">
+            <label><input id="xap-content-mode-template" type="radio" name="content_mode" value="template" checked> Template</label>
+            <label style="margin-left:20px"><input id="xap-content-mode-file" type="radio" name="content_mode" value="file"> File content</label>
+          </div>
+
+          <div id="xap-template-mode">
+            <div class="xap-row"><label>Template noi dung (dung {hashtag} de chen hashtag):</label></div>
+            <textarea id="xap-template" placeholder="Check this out: {hashtag} #interesting" style="height:64px;margin-bottom:8px;"></textarea>
+            <label>Hashtag (moi dong 1 hashtag):</label>
+          </div>
+
+          <div id="xap-file-mode" style="display:none">
+            <div class="xap-row">
+              <label>Tep content (.json):</label>
+              <input id="xap-content-file" type="file" accept=".json" style="width:auto;">
+            </div>
+            <div class="xap-row">
+              <label>So tweet muon dang:</label>
+              <input id="xap-content-quantity" type="number" min="1" max="100" value="5" style="width:60px;">
+            </div>
+          </div>
+        </div>
         <textarea id="xap-queue" placeholder="Bai mot dong
 
 ---
@@ -656,6 +707,8 @@ rt:1234567890123456789"></textarea>
     $('xap-reset').onclick = () => {
       if (!confirm('Xoa lich su da dang? Cac bai cu se duoc dang lai.')) return;
       state.posted = [];
+      state.postedHashtags = [];
+      state.postedContent = [];
       state.cursor = 0;
       state.perDay = {};
       save(state);
@@ -674,9 +727,65 @@ rt:1234567890123456789"></textarea>
       location.href = `https://x.com/search?q=${encodeURIComponent(kw)}&src=typed_query${f}`;
     };
 
+    $('xap-hashtag-mode').onclick = () => {
+      state.settings.hashtagMode = $('xap-hashtag-mode').checked;
+      save(state);
+      const normalLabel = $('xap-normal-label');
+      const hashtagLabel = $('xap-hashtag-label');
+      if (state.settings.hashtagMode) {
+        if (normalLabel) normalLabel.style.display = 'none';
+        if (hashtagLabel) hashtagLabel.style.display = 'block';
+      } else {
+        if (normalLabel) normalLabel.style.display = 'block';
+        if (hashtagLabel) hashtagLabel.style.display = 'none';
+      }
+      syncFromUI();
+    };
+
+    // Content mode toggle
+    const updateContentModeUI = () => {
+      const mode = document.querySelector('input[name="content_mode"]:checked')?.value || 'template';
+      const templateMode = $('xap-template-mode');
+      const fileMode = $('xap-file-mode');
+      if (mode === 'file') {
+        if (templateMode) templateMode.style.display = 'none';
+        if (fileMode) fileMode.style.display = 'block';
+      } else {
+        if (templateMode) templateMode.style.display = 'block';
+        if (fileMode) fileMode.style.display = 'none';
+      }
+    };
+
+    $('xap-content-mode-template').onchange = updateContentModeUI;
+    $('xap-content-mode-file').onchange = updateContentModeUI;
+
+    $('xap-content-file').onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target.result);
+          if (data.contents && Array.isArray(data.contents)) {
+            state.contentData = data.contents;
+            state.postedContent = [];
+            save(state);
+            addLog(`Da load ${data.contents.length} content tu file`, 'ok');
+            syncFromUI();
+          } else {
+            addLog('File khong dung format (can co property "contents")', 'err');
+          }
+        } catch (err) {
+          addLog(`Loi doc file: ${err.message}`, 'err');
+        }
+      };
+      reader.readAsText(file);
+    };
+
     for (const id of ['xap-gapmin', 'xap-gapmax', 'xap-max', 'xap-loop', 'xap-queue',
                       'xap-keyword', 'xap-exclude', 'xap-minlikes', 'xap-maxsearch',
-                      'xap-approval', 'xap-latest', 'xap-hfrom', 'xap-hto', 'xap-natural']) {
+                      'xap-approval', 'xap-latest', 'xap-hfrom', 'xap-hto', 'xap-natural',
+                      'xap-template']) {
       $(id).addEventListener('change', syncFromUI);
       $(id).addEventListener('input', syncFromUI);
     }
@@ -684,17 +793,92 @@ rt:1234567890123456789"></textarea>
 
   /**
    * Doc hang doi tu o nhap.
-   * - Co dong "---" rieng  -> moi khoi giua cac dau phan cach la mot bai,
-   *                            trong bai duoc xuong dong thoai mai.
-   * - Khong co "---"        -> moi dong la mot bai (giu tuong thich voi ban cu).
-   * Trong ca hai che do, "\n" viet tay cung duoc doi thanh xuong dong that.
+   * - Che do hashtag: nhap mot hashtag 1 dong, tu dong them noi dung theo template.
+   *                  Neu hashtag da dang thi bo qua.
+   * - Che do binh thuong:
+   *   - Co dong "---" rieng  -> moi khoi giua cac dau phan cach la mot bai,
+   *                             trong bai duoc xuong dong thoai mai.
+   *   - Khong co "---"       -> moi dong la mot bai (giu tuong thich voi ban cu).
+   * Trong che do binh thuong, "\n" viet tay cung duoc doi thanh xuong dong that.
    */
   function parseQueue(raw) {
     const bad = [];
+    const items = [];
+
+    if (state.settings.hashtagMode) {
+      const contentMode = document.querySelector('input[name="content_mode"]:checked')?.value || 'template';
+
+      if (contentMode === 'file' && state.contentData.length > 0) {
+        // File mode: random content tu file
+        const quantity = parseInt($('xap-content-quantity').value) || 5;
+        const hashtags = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
+
+        for (const tag of hashtags) {
+          if (!tag.startsWith('#')) {
+            bad.push(tag);
+            continue;
+          }
+          if (state.postedHashtags.includes(tag.toLowerCase())) {
+            continue;
+          }
+
+          // Random content tu file, tru cac content da dang voi hashtag nay
+          const usedIndices = state.postedContent
+            .filter((pc) => pc.hashtag === tag.toLowerCase())
+            .map((pc) => pc.contentIndex);
+
+          const availableIndices = state.contentData
+            .map((_, i) => i)
+            .filter((i) => !usedIndices.includes(i));
+
+          if (availableIndices.length < quantity) {
+            addLog(`Chi con ${availableIndices.length} content cho ${tag} (can ${quantity})`, 'warn');
+          }
+
+          for (let i = 0; i < quantity && availableIndices.length > 0; i++) {
+            const randomIdx = Math.floor(Math.random() * availableIndices.length);
+            const contentIndex = availableIndices[randomIdx];
+            availableIndices.splice(randomIdx, 1);
+
+            const content = state.contentData[contentIndex];
+            const now = new Date();
+            const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            const date = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + now.getFullYear();
+            const text = content + '\n' + time + ' ' + date + '\n' + tag;
+            items.push({
+              type: 'tweet',
+              text,
+              hashtag: tag.toLowerCase(),
+              contentIndex
+            });
+          }
+        }
+        if (bad.length) addLog(`Bo qua ${bad.length} dong khong phai hashtag`, 'warn');
+        return { items, bad, hasSep: false };
+      }
+
+      // Template mode: dung template
+      const hashtags = raw.split('\n').map((h) => h.trim()).filter((h) => h.length > 0);
+      for (const tag of hashtags) {
+        if (!tag.startsWith('#')) {
+          bad.push(tag);
+          continue;
+        }
+        if (state.postedHashtags.includes(tag.toLowerCase())) {
+          continue;
+        }
+        const text = state.settings.contentTemplate.replace('{hashtag}', tag);
+        items.push({ type: 'tweet', text, hashtag: tag.toLowerCase() });
+      }
+      if (bad.length) addLog(`Bo qua ${bad.length} dong khong phai hashtag`, 'warn');
+      return { items, bad, hasSep: false };
+    }
+
+    // Che do binh thuong
     const hasSep = /^\s*---\s*$/m.test(raw);
     const chunks = hasSep ? raw.split(/^\s*---\s*$/m) : raw.split('\n');
 
-    const items = chunks
+    const parsed = chunks
       .map((c) => c.trim())
       .filter(Boolean)
       .map((chunk) => {
@@ -707,13 +891,18 @@ rt:1234567890123456789"></textarea>
       })
       .filter(Boolean);
 
-    return { items, bad, hasSep };
+    return { items: parsed, bad, hasSep };
   }
 
   function syncFromUI() {
     const { items, bad } = parseQueue($('xap-queue').value);
     state.queue = items;
-    if (bad.length) addLog(`Bo qua ${bad.length} dong "rt:" co ID khong hop le: ${bad.join(', ')}`, 'warn');
+    if (bad.length) {
+      const msg = state.settings.hashtagMode
+        ? `Bo qua ${bad.length} dong khong phai hashtag`
+        : `Bo qua ${bad.length} dong "rt:" co ID khong hop le: ${bad.join(', ')}`;
+      addLog(msg, 'warn');
+    }
     // Khong ep sang so o day. O dang go do ("" hoac "3") ma bi ep ve mac dinh
     // se nhay so ngay truoc mat. Chi doc thoi; viec kep khoang de luc dung toi.
     const num = (id, def) => {
@@ -724,6 +913,7 @@ rt:1234567890123456789"></textarea>
     state.settings.gapMax = num('xap-gapmax', 45);
     state.settings.maxPerDay = num('xap-max', 0);
     state.settings.loop = $('xap-loop').checked;
+    state.settings.contentTemplate = $('xap-template').value || 'Check this out: {hashtag} #interesting';
     state.settings.keyword = $('xap-keyword').value;
     state.settings.excludeWords = $('xap-exclude').value;
     state.settings.minLikes = num('xap-minlikes', 0);
@@ -816,10 +1006,23 @@ rt:1234567890123456789"></textarea>
          Da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`
       : `<b class="xap-dim2">○ Dang dung</b> — da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`;
 
-    const parts = state.queue.map((i) => (i.type === 'retweet' ? `rt:${i.id}` : i.text));
-    // co bai nao nhieu dong thi phai dung dau phan cach, khong thi giu moi dong mot bai
-    const multi = parts.some((p) => p.includes('\n'));
-    setVal('xap-queue', parts.join(multi ? '\n---\n' : '\n'));
+    setVal('xap-hashtag-mode', state.settings.hashtagMode);
+    if (state.settings.hashtagMode) {
+      // Hien thi danh sach hashtag (giu nhung hashtag chua dang)
+      const hashtagsOnly = state.queue
+        .filter((i) => i.type === 'tweet' && i.hashtag)
+        .map((i) => {
+          const tag = i.hashtag;
+          return tag.startsWith('#') ? tag : '#' + tag;
+        });
+      setVal('xap-queue', hashtagsOnly.join('\n'));
+      setVal('xap-template', state.settings.contentTemplate);
+    } else {
+      const parts = state.queue.map((i) => (i.type === 'retweet' ? `rt:${i.id}` : i.text));
+      // co bai nao nhieu dong thi phai dung dau phan cach, khong thi giu moi dong mot bai
+      const multi = parts.some((p) => p.includes('\n'));
+      setVal('xap-queue', parts.join(multi ? '\n---\n' : '\n'));
+    }
 
     setVal('xap-gapmin', state.settings.gapMin);
     setVal('xap-gapmax', state.settings.gapMax);
@@ -840,8 +1043,24 @@ rt:1234567890123456789"></textarea>
 
   // ---------------------------------------------------------------- khoi dong
 
+  async function loadDefaultContent() {
+    try {
+      const response = await fetch(chrome.runtime.getURL('../content-lenamiu.json'));
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.contents && Array.isArray(data.contents)) {
+        state.contentData = data.contents;
+        save(state);
+        addLog(`Da load default content (${data.contents.length} items)`, 'ok');
+      }
+    } catch (err) {
+      console.log('Khong load duoc default content:', err);
+    }
+  }
+
   async function boot() {
     await sleep(1200);           // cho X dung xong khung trang
+    await loadDefaultContent();  // load default content
     buildPanel();
     render();
 
