@@ -48,6 +48,7 @@
   })();
 
   const KEY = 'x_auto_poster_state';
+  const QUEUE_FORMAT = 'v2-blankline';   // doi khi cach ghep content + label doi
   const VERSION = '1.0.0';
   const AUTHOR = 'dangtthuynhi';
   const REPO = 'https://github.com/dangtthuynhi/twitter-tweet';
@@ -130,19 +131,6 @@
 
   const today = () => new Date().toISOString().slice(0, 10);
   const countToday = () => state.perDay[today()] || 0;
-
-  /** Dau thoi gian dang "hh:mm dd-mm-yyyy" theo gio may. */
-  const stamp = (d = new Date()) =>
-    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ` +
-    `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
-
-  /**
-   * Noi dung thuc su dem di dang. Dung lai ngay luc nay de dau thoi gian la gio
-   * that, thay vi gio luc dung hang doi — ca loat bai dung chung mot gio thi sai.
-   * `job.text` van giu nguyen lam dau van tay chong trung, dung dong vao.
-   */
-  const textToPost = (job) =>
-    job.content && job.labels ? `${job.content}\n${stamp()}\n${job.labels}` : job.text;
 
   const fingerprint = (item) =>
     item.type === 'retweet' ? `rt:${item.id}` : `tw:${item.text.trim().slice(0, 200)}`;
@@ -554,7 +542,7 @@
         return;
       }
       if (job.type === 'tweet') {
-        await doPostTweet(textToPost(job), await composerScope());
+        await doPostTweet(job.text, await composerScope());
         addLog(`Da dang: ${job.text.slice(0, 50)}`, 'ok');
       } else {
         await doRetweet();
@@ -702,7 +690,7 @@
         addLog('Dang mo o soan thao...');
         const scope = await openComposerInPlace();
         if (scope) {
-          await doPostTweet(textToPost(job), scope);
+          await doPostTweet(job.text, scope);
           await closeComposer();
           finishJob(job, `Da dang: ${job.text.split('\n')[0].slice(0, 50)}`);
           return;
@@ -847,7 +835,7 @@
       <header id="xap-head"><h3>X Auto Poster <span class="xap-dim">v${VERSION}</span></h3>
         <span id="xap-toggle" class="xap-dim2">▾</span></header>
       <div id="xap-body">
-        <div class="xap-row"><label>Label — moi dong mot label, tat ca nam chung trong moi tweet</label></div>
+        <div class="xap-row"><label>Label — go sao dang y vay, ca cum nam duoi content va cach mot dong trong</label></div>
         <textarea id="xap-queue" placeholder="LENAMIU AT FLEX
 #Flex1045xPLSLoveรักได้ไหม
 #LenaMiu #ลีน่าหมิว"></textarea>
@@ -956,13 +944,18 @@
 
   /**
    * Doc o nhap label va sinh ra hang doi tweet.
-   * Moi dong la mot label; ca cum label nam chung trong moi tweet, kem mot
-   * noi dung boc ngau nhien tu content-lenamiu.json va dau thoi gian.
+   * Ca cum label nam chung trong moi tweet, duoi mot noi dung boc ngau nhien
+   * tu content-lenamiu.json, cach nhau mot dong trong.
    */
   function parseQueue(raw) {
     const items = [];
-    const labelLines = raw.split('\n').map((h) => h.trim()).filter(Boolean);
-    if (!labelLines.length) return items;
+    // Giu NGUYEN cach xuong dong nguoi dung go, ke ca dong trong o giua: do la
+    // mot phan cach trinh bay cua bai, go sao thi dang y nhu vay. Chi cat phan
+    // trong thua o dau va cuoi o nhap.
+    const lines = raw.split('\n').map((h) => h.trim());
+    while (lines.length && !lines[0]) lines.shift();
+    while (lines.length && !lines[lines.length - 1]) lines.pop();
+    if (!lines.length) return items;
 
     if (!contentData.length) {
       addLog('Chua load duoc content-lenamiu.json', 'err');
@@ -970,7 +963,10 @@
     }
 
     const quantity = state.settings.quantity;
-    const labelKey = labelLines.join(' ').toLowerCase();
+    // Khoa chong trung chi tinh tren cac dong CO CHU. Dem ca dong trong vao thi
+    // them bot mot dong trang la thanh nhom label khac, va ca lich su "content
+    // nay da dang kem label nay" coi nhu vut di.
+    const labelKey = lines.filter(Boolean).join(' ').toLowerCase();
 
     // Chi tru nhung content da dang kem dung nhom label nay
     const usedIndices = state.postedContent
@@ -984,8 +980,7 @@
       addLog(`Chi con ${availableIndices.length} content (can ${quantity})`, 'warn');
     }
 
-    const labels = labelLines.join('\n');
-    const at = stamp();
+    const labels = lines.join('\n');
 
     for (let i = 0; i < quantity && availableIndices.length > 0; i++) {
       const pick = Math.floor(Math.random() * availableIndices.length);
@@ -994,7 +989,7 @@
       const content = contentData[contentIndex];
       items.push({
         type: 'tweet',
-        text: `${content}\n${at}\n${labels}`,
+        text: `${content}\n\n${labels}`,
         content,
         labels,
         hashtag: labelKey,
@@ -1010,7 +1005,11 @@
     // Chi dung lai hang doi khi label hoac so luong that su doi. Neu dung lai moi
     // lan goi thi tung phim go — va ca nut Bat dau — deu boc lai 100 noi dung
     // ngau nhien khac, lam bo dem tien do nhay ve 0 du dang dang do.
-    const sig = `${state.settings.labels}\u0000${state.settings.quantity}`;
+    // QUEUE_FORMAT nam trong chu ky de khi doi cach ghep bai (bo dau thoi gian,
+    // them dong trong truoc label...) hang doi cu con nam trong localStorage
+    // tu dung lai mot lan. Khong co no thi label khong doi = sig khong doi, va
+    // bot cu dang tiep nhung bai da dung theo dinh dang cu.
+    const sig = `${QUEUE_FORMAT}\u0000${state.settings.labels}\u0000${state.settings.quantity}`;
     if (sig !== state.queueSig) {
       state.queueSig = sig;
       // Retweet do khung duyet day vao khong den tu o nhap, phai giu lai.
