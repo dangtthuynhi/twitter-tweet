@@ -129,6 +129,10 @@
   // X co the chen hop thoai chan ngang (canh bao trung bai, thu thach bot...).
   // Dem so lan that bai lien tiep de dung han thay vi dam dau vao mai.
   let consecutiveFails = 0;
+  // Lan cuoi di kiem ban nhap da luu. Nut "Drafts" cua X co luc hien ca khi
+  // khong con ban nhap nao, va di vao ra man do truoc MOI bai la thua han mot
+  // dong thao tac — dong nao cung la mot co hoi bam nham.
+  let draftsCheckedAt = 0;
 
   const today = () => new Date().toISOString().slice(0, 10);
   const countToday = () => state.perDay[today()] || 0;
@@ -266,41 +270,29 @@
   }
 
   /**
-   * De `text` len TOAN BO noi dung dang co, trong mot thao tac duy nhat.
+   * Xoa sach o soan thao bang vung chon.
    *
-   * Boi den het roi insertText thi DraftJS thay dung mot lenh thay the, khong
-   * con khe ho giua "xoa" va "go" de chu cu kip quay ve. Kiem lai bang so sanh
-   * BANG NHAU chu khong phai "bat dau bang" — con sot mot chu cu la biet ngay.
+   * KHONG dung insertText de "de len" o day. DraftJS giu vung chon RIENG cua
+   * no; dat Range bang tay thi no khong chac nhin thay, va khi no khong nhin
+   * thay thi insertText NOI THEM vao cuoi chu khong de len. Thu lai vai lan
+   * la ra bai nhan ban — moi lan hong lai lam no hong them.
+   *
+   * Nen o day chi co `delete`, va he thay chu DAI RA la dung ngay: chu dai ra
+   * nghia la lenh dang noi them chu khong xoa, co co lam nua cung chi te hon.
    */
-  async function replaceAllIn(el, text, settle = 4000) {
-    const want = text.replace(/\s+/g, ' ').trim();
-    const seen = () => el.textContent.replace(/\s+/g, ' ').trim();
-    for (let i = 0; i < 4; i++) {
-      // Boi den that bai = o soan thao vua bien mat. Go tiep luc nay la go vao
-      // vung chon cu, nam o dau do ngoai o — co khi la ca trang.
-      if (!selectAllIn(el)) { await pause(400); continue; }
-      await pause(250);              // cho DraftJS kip nhan vung boi den moi
-      await editCmd('insertText', text);
-      if (await until(() => seen() === want, settle)) return true;
-    }
-    return false;
-  }
-
   async function clearComposer(el, settle = 3000) {
+    const seen = () => el.textContent.replace(/\s+/g, ' ').trim();
+    const before = seen().length;
+
     for (let i = 0; i < 4; i++) {
       if (isEmpty(el)) return;
+      if (seen().length > before) {
+        throw new Error('O soan thao dai them ra thay vi sach, dung lai');
+      }
 
+      // Boi den that bai = o soan thao vua bien mat khoi trang.
       if (!selectAllIn(el)) { await pause(400); continue; }
       await pause(250);              // cho bay focus cua modal yen vi da
-      await editCmd('delete');
-      if (await staysEmpty(el, settle)) return;
-
-      // Chu quay lai nghia la editorState cua DraftJS chua he doi. Ep no ve
-      // dung mot ky tu bang insertText truoc — sau mot lenh thay the thi trang
-      // thai trong cua DraftJS khop voi DOM, luc do delete moi an.
-      await replaceAllIn(el, '.', settle);
-      if (!selectAllIn(el)) { await pause(400); continue; }
-      await pause(250);
       await editCmd('delete');
       if (await staysEmpty(el, settle)) return;
     }
@@ -386,15 +378,17 @@
     const entry = draftsEntry(scope);
     if (!entry) return false;
 
+    draftsCheckedAt = Date.now();
     addLog('Co ban nhap da luu, dang xoa...', 'warn');
     entry.click();
 
-    // Nhan dien man "Unsent Posts" bang nut Edit — do la thu chi man nay co,
-    // con chu "Drafts" thi man vua roi cung co, de nham lam.
+    // Nhan dien man "Unsent Posts": vua phai co nut Edit, vua phai co chu
+    // "unsent"/"draft" tren man. Nhan bang moi nut Edit thi vo phai man khac
+    // cung co nut do, va cac buoc sau se di bam lung tung tren man ay.
     const listBox = () => [...document.querySelectorAll('[role="dialog"]')]
-      .find((d) => buttonByText(d, /^edit$/i));
+      .find((d) => buttonByText(d, /^edit$/i) && /unsent|draft/i.test(d.innerText || ''));
     if (!(await until(() => listBox(), 8000))) {
-      addLog('Khong mo duoc danh sach ban nhap.', 'warn');
+      addLog(`Khong mo duoc danh sach ban nhap — man hinh dang hien: "${describeOverlay()}"`, 'warn');
       await dismissOverlays();
       return false;
     }
@@ -406,9 +400,11 @@
     // Chon tung dong. X khong co "chon tat ca"; chan 50 dong cho co diem dung.
     const rows = [...box.querySelectorAll('article, [data-testid="tweet"]')].slice(0, 50);
     if (!rows.length) {
-      addLog('Danh sach ban nhap trong.', 'ok');
+      // Vao duoc den day ma khong co dong nao = loi vao "Drafts" la bao dong
+      // gia, X khong giu ban nhap nao ca. Khong phai viec da lam xong.
+      addLog('Khong co ban nhap nao de xoa.');
       await dismissOverlays();
-      return true;
+      return false;
     }
     for (const r of rows) { r.click(); await pause(150); }
 
@@ -479,33 +475,26 @@
   }
 
   /**
-   * Go `text` vao o soan thao, DE DE LEN chu dang co san.
+   * Go `text` vao o soan thao. CHI go vao o da rong.
    *
-   * Truoc day la xoa truoc roi go sau. Giua hai buoc do co mot khe ho: o doc
-   * ra rong mot nhip, ta tuong da sach va go tiep, roi DraftJS do chu cu tro
-   * lai tu editorState — chu moi dinh duoi chu cu, thanh bai gop hai bai.
-   * Thay the trong MOT lenh thi khong con khe ho nao.
+   * Khong co duong nao dang tin de "de len" chu cu: lenh go chu di theo vung
+   * chon cua DraftJS chu khong theo vung chon ta dat, nen go de len de thanh
+   * go noi them. Sach truoc, go sau — va khong sach duoc thi bo bai, de nguoi
+   * goi vut ban nhap bang giao dien roi mo lai o soan thao moi.
    */
   async function typeInto(el, text) {
     const lines = text.split('\n');
 
-    if (!isEmpty(el)) addLog('O soan thao con chu cu, de de len.', 'warn');
-
-    // Dong dau tien vua la "xoa" vua la "go". Bai luon bat dau bang content
-    // nen lines[0] khong rong; neu co thi don sach theo duong thuong.
-    if (lines[0]) {
-      if (!(await replaceAllIn(el, lines[0]))) {
-        throw new Error('Khong xoa duoc chu cu trong o soan thao');
-      }
-    } else {
+    if (!isEmpty(el)) {
+      addLog('O soan thao con chu cu, dang don...', 'warn');
       await clearComposer(el);
     }
 
     // DraftJS khong hieu ky tu "\n" trong insertText — no se bi nuot hoac
     // bien thanh khoang trang. Phai chen tung dong, giua cac dong dung
     // insertLineBreak (tuong duong nguoi dung bam Enter trong o soan thao).
-    for (let i = 1; i < lines.length; i++) {
-      await editCmd('insertLineBreak');
+    for (let i = 0; i < lines.length; i++) {
+      if (i > 0) await editCmd('insertLineBreak');
       if (lines[i]) await editCmd('insertText', lines[i]);
     }
 
@@ -710,8 +699,18 @@
       // co nguy co thua ke chu cu, va cang dang cang chong them draft moi.
       // Don xong phai mo lai o soan thao, va chi mot lan — hong thi di tiep
       // voi cai dang co, khong quay vong.
-      if (allowPurge && draftsEntry(dialog)) {
+      if (allowPurge && Date.now() - draftsCheckedAt > 600000 && draftsEntry(dialog)) {
         await purgeDrafts(dialog);
+        return openComposerInPlace(false);
+      }
+
+      // O soan thao phai RONG truoc khi go. Khong sach thi vut ban nhap bang
+      // GIAO DIEN roi mo lai o moi — dung co xoa chu bang vung chon, vi khi
+      // DraftJS khong nhin thay vung chon ta dat thi lenh go sau noi them chu
+      // khong de len, va bai ra thanh nhan ban.
+      if (allowPurge && !isEmpty(dialog.querySelector('[data-testid="tweetTextarea_0"]'))) {
+        addLog('O soan thao con chu cu, vut ban nhap roi mo lai.', 'warn');
+        await discardDraft();
         return openComposerInPlace(false);
       }
       return dialog;
