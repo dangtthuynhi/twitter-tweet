@@ -226,13 +226,24 @@
    * that bai y het nhau, khong he co thao tac that nao xay ra.
    */
   function selectAllIn(el) {
-    el.focus();
-    const sel = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    return !sel.isCollapsed && el.contains(sel.anchorNode);
+    // O soan thao co the bi go khoi trang ngay giua chung: X dung lai modal,
+    // hoac trang vua chuyen sang view khac (mo anh, mo mot bai...). Range tren
+    // mot node da roi khoi document thi khong thuoc ve document nao, va
+    // addRange() nem "The given range isn't in document". Kiem truoc, va van
+    // boc try: giua luc kiem va luc goi, node van kip bien mat.
+    if (!el || !el.isConnected || el.ownerDocument !== document) return false;
+    try {
+      el.focus();
+      const sel = window.getSelection();
+      if (!sel) return false;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return !sel.isCollapsed && el.contains(sel.anchorNode);
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -265,7 +276,9 @@
     const want = text.replace(/\s+/g, ' ').trim();
     const seen = () => el.textContent.replace(/\s+/g, ' ').trim();
     for (let i = 0; i < 4; i++) {
-      selectAllIn(el);
+      // Boi den that bai = o soan thao vua bien mat. Go tiep luc nay la go vao
+      // vung chon cu, nam o dau do ngoai o — co khi la ca trang.
+      if (!selectAllIn(el)) { await pause(400); continue; }
       await pause(250);              // cho DraftJS kip nhan vung boi den moi
       await editCmd('insertText', text);
       if (await until(() => seen() === want, settle)) return true;
@@ -277,7 +290,7 @@
     for (let i = 0; i < 4; i++) {
       if (isEmpty(el)) return;
 
-      selectAllIn(el);
+      if (!selectAllIn(el)) { await pause(400); continue; }
       await pause(250);              // cho bay focus cua modal yen vi da
       await editCmd('delete');
       if (await staysEmpty(el, settle)) return;
@@ -286,7 +299,7 @@
       // dung mot ky tu bang insertText truoc — sau mot lenh thay the thi trang
       // thai trong cua DraftJS khop voi DOM, luc do delete moi an.
       await replaceAllIn(el, '.', settle);
-      selectAllIn(el);
+      if (!selectAllIn(el)) { await pause(400); continue; }
       await pause(250);
       await editCmd('delete');
       if (await staysEmpty(el, settle)) return;
@@ -422,19 +435,47 @@
   }
 
   /**
+   * O soan thao ma bot duoc phep dong vao — hoac `null` neu khong co cai nao.
+   *
+   * "tweetTextarea_0" la mot cai ten dung chung: o soan bai moi, o tra loi
+   * inline duoi mot bai viet, va o tra loi trong modal deu mang ten do. Bot
+   * chi bao gio go vao o soan bai MOI, nen chu nam trong hai cai kia la chu
+   * nguoi dung dang go dang do — xoa di la mat trang cua ho.
+   *
+   * Hai dau hieu de nhan ra cai cua minh:
+   *  - Trong modal, va modal do khong kem theo bai nao (kem bai = dang tra loi
+   *    bai do, hoac dang trich dan).
+   *  - Ngoai modal thi chi tin khi dang o trang chu hoac trang soan bai.
+   *    Trang mot bai viet (va trang xem anh cua no) deu khong tinh.
+   */
+  function ownComposer() {
+    const dialog = [...document.querySelectorAll('[role="dialog"]')]
+      .find((d) => d.querySelector('[data-testid="tweetTextarea_0"]'));
+    if (dialog) {
+      if (dialog.querySelector('article[data-testid="tweet"]')) return null;
+      return dialog.querySelector('[data-testid="tweetTextarea_0"]');
+    }
+    const path = location.pathname;
+    if (/^\/compose\//.test(path) || path === '/home' || path === '/') {
+      return document.querySelector('[data-testid="tweetTextarea_0"]');
+    }
+    return null;
+  }
+
+  /**
    * Don o soan thao neu con chu. Phai goi truoc moi lan tai lai trang: con chu
    * chua gui thi X bat canh bao "Changes you made may not be saved", hop thoai
    * do chan dieu huong va script khong tu bam duoc -> bot treo cho nguoi bam tay.
    */
   async function clearComposerIfAny() {
-    const box = document.querySelector('[data-testid="tweetTextarea_0"]');
+    const box = ownComposer();
     if (!box || !box.textContent.trim()) return true;
     try { await clearComposer(box); return true; } catch { /* thu cach manh hon */ }
 
     // Xoa tai cho khong an -> vut han ban nhap. Chi can con mot chu la lan mo
     // composer ke tiep lai thua ke dung dong rac nay.
     await discardDraft();
-    return until(() => isEmpty(document.querySelector('[data-testid="tweetTextarea_0"]')), 3000);
+    return until(() => isEmpty(ownComposer()), 3000);
   }
 
   /**
@@ -516,15 +557,24 @@
    * trong modal van giu nguyen chu cu.
    */
   async function composerScope(timeout = 20000) {
-    const deadline = Date.now() + timeout;
+    const deadline = Date.now() + timeout * paceFactor();
+    const onComposePage = () => /^\/compose\//.test(location.pathname);
     while (Date.now() < deadline) {
       const dialog = [...document.querySelectorAll('[role="dialog"]')]
         .find((d) => d.querySelector('[data-testid="tweetTextarea_0"]'));
       if (dialog) return dialog;
-      if (document.querySelector('[data-testid="tweetTextarea_0"]')) return document;
+
+      // O soan thao NGOAI modal chi dang tin khi dang dung o trang soan bai.
+      // Tren trang mot bai viet (hay trang xem anh cua bai do), chinh cai ten
+      // "tweetTextarea_0" lai la o TRA LOI bai cua nguoi khac — go vao do la
+      // bai cua minh di ra duoi dang reply duoi tweet nguoi ta.
+      if (onComposePage() && document.querySelector('[data-testid="tweetTextarea_0"]')) {
+        return document;
+      }
       await sleep(300);
     }
-    return document;
+    // Tha bo bai con hon dang nham cho. Nguoi goi bat loi nay va bo qua bai.
+    throw new Error(`Khong thay o soan thao bai moi (dang o ${location.pathname})`);
   }
 
   async function doPostTweet(text, scope = document) {
@@ -1391,11 +1441,12 @@
    * bai gop nhieu bai. Don ngay luc nap trang, truoc khi lam bat cu viec gi.
    *
    * Chi don khi bot dang chay. Luc da dung thi o soan thao la cua nguoi dung,
-   * xoa chu ho vua go la mat trang.
+   * xoa chu ho vua go la mat trang. Va ke ca luc dang chay cung chi dong vao
+   * o soan bai moi — xem ownComposer().
    */
   async function clearLeftoverDraft() {
     if (!state.running) return;
-    const box = document.querySelector('[data-testid="tweetTextarea_0"]');
+    const box = ownComposer();
     if (!box || !box.textContent.trim()) return;
     addLog(await clearComposerIfAny()
       ? 'Da don ban nhap con sot trong o soan thao.'
