@@ -96,6 +96,7 @@
       hourFrom: 7,        // chi dang trong khung gio nay
       hourTo: 23,
       naturalPace: true,  // gian cach lech chuan thay vi deu tam tap
+      slowMode: false,    // may cham: gian het moi nhip cho va moi han doi ra 3 lan
     },
   };
 
@@ -169,7 +170,7 @@
    * nao cung dung: xong som di som, xong muon van kip.
    */
   async function until(fn, timeout = 4000, step = 120) {
-    const deadline = Date.now() + timeout;
+    const deadline = Date.now() + timeout * paceFactor();
     for (;;) {
       try { if (fn()) return true; } catch { /* DOM dang thay, thu lai */ }
       if (Date.now() >= deadline) return false;
@@ -179,6 +180,27 @@
 
   /** O soan thao da sach chua. */
   const isEmpty = (el) => !el || !el.isConnected || !el.textContent.trim();
+
+  /**
+   * He so gian nhip. Bat "may cham" thi moi nhip nghi va moi han doi deu dai
+   * ra gap ba — may yeu, tab bi dim, hay mang dang ket deu can nhieu thoi gian
+   * hon de React dung lai DOM, va cat giua chung la ra bai sai.
+   */
+  const paceFactor = () => (state?.settings?.slowMode ? 3 : 1);
+  const pause = (ms) => sleep(Math.round(ms * paceFactor()));
+
+  /**
+   * Go mot lenh soan thao, co nhip nghi TRUOC va SAU.
+   *
+   * Lenh truoc vua lam React dung lai mot vong render; go lenh ke tiep ngay
+   * luc do la go vao mot DOM dang thay doi — tren may cham, dung do la cho
+   * hong: lenh dam vao nhau va chu ra sai thu tu.
+   */
+  async function editCmd(cmd, value = null, gap = 120) {
+    await pause(gap);
+    document.execCommand(cmd, false, value);
+    await pause(gap);
+  }
 
   /** Cho mot element xuat hien. Nem loi neu qua han. */
   function waitFor(selector, timeout = 15000, root = document) {
@@ -239,7 +261,7 @@
    */
   async function staysEmpty(el, settle = 3000, hold = 800) {
     if (!(await until(() => isEmpty(el), settle))) return false;
-    await sleep(hold);
+    await pause(hold);
     return isEmpty(el);
   }
 
@@ -255,8 +277,8 @@
     const seen = () => el.textContent.replace(/\s+/g, ' ').trim();
     for (let i = 0; i < 4; i++) {
       selectAllIn(el);
-      await sleep(250);              // cho DraftJS kip nhan vung boi den moi
-      document.execCommand('insertText', false, text);
+      await pause(250);              // cho DraftJS kip nhan vung boi den moi
+      await editCmd('insertText', text);
       if (await until(() => seen() === want, settle)) return true;
     }
     return false;
@@ -267,8 +289,8 @@
       if (isEmpty(el)) return;
 
       selectAllIn(el);
-      await sleep(200);              // cho bay focus cua modal yen vi da
-      document.execCommand('delete', false, null);
+      await pause(250);              // cho bay focus cua modal yen vi da
+      await editCmd('delete');
       if (await staysEmpty(el, settle)) return;
 
       // Chu quay lai nghia la editorState cua DraftJS chua he doi. Ep no ve
@@ -276,11 +298,21 @@
       // thai trong cua DraftJS khop voi DOM, luc do delete moi an.
       await replaceAllIn(el, '.', settle);
       selectAllIn(el);
-      await sleep(200);
-      document.execCommand('delete', false, null);
+      await pause(250);
+      await editCmd('delete');
       if (await staysEmpty(el, settle)) return;
     }
     throw new Error('Khong xoa duoc chu cu trong o soan thao');
+  }
+
+  /**
+   * Tim mot thu bam duoc theo CHU hien tren man hinh.
+   * X doi testid kha thuong xuyen, con chu tren nut thi ben hon nhieu.
+   */
+  function buttonByText(root, re) {
+    if (!root) return null;
+    return [...root.querySelectorAll('[role="button"], button, a[role="link"]')]
+      .find((b) => re.test((b.innerText || '').trim())) || null;
   }
 
   /**
@@ -304,8 +336,7 @@
     const want = choice === 'discard'
       ? /discard|delete|don't save|khong luu|huy|xoa/i
       : /^save$/i;
-    const btn = [...sheet.querySelectorAll('[role="button"], button')]
-      .find((b) => want.test((b.innerText || '').trim()));
+    const btn = buttonByText(sheet, want);
     const fallback = sheet.querySelector(choice === 'discard'
       ? '[data-testid="confirmationSheetCancel"]'
       : '[data-testid="confirmationSheetConfirm"]');
@@ -332,6 +363,73 @@
       await sleep(300);
     }
     await answerSaveSheet('discard');
+  }
+
+  /** Loi vao danh sach ban nhap, neu X dang giu ban nhap nao. */
+  const draftsEntry = (root = document) =>
+    root.querySelector('[data-testid="unsentTweetsButton"]') ||
+    buttonByText(root, /^drafts?$/i);
+
+  /**
+   * Xoa sach ban nhap da luu cua X.
+   *
+   * Chu "Drafts" trong o soan thao nghia la X dang giu ban nhap, va chinh
+   * chung la nguon chu cu do nguoc vao o soan thao o bai sau. Xoa chu trong o
+   * khong dong toi chung — phai vao man "Unsent Posts" ma xoa.
+   *
+   * Lam HET SUC, khong nem loi: day la viec don dep, hong thi ghi log roi di
+   * tiep. Moi buoc ghi lai duoc minh thay gi, de con lan ra khi X doi giao dien.
+   */
+  async function purgeDrafts(scope = document) {
+    const entry = draftsEntry(scope);
+    if (!entry) return false;
+
+    addLog('Co ban nhap da luu, dang xoa...', 'warn');
+    entry.click();
+
+    // Nhan dien man "Unsent Posts" bang nut Edit — do la thu chi man nay co,
+    // con chu "Drafts" thi man vua roi cung co, de nham lam.
+    const listBox = () => [...document.querySelectorAll('[role="dialog"]')]
+      .find((d) => buttonByText(d, /^edit$/i));
+    if (!(await until(() => listBox(), 8000))) {
+      addLog('Khong mo duoc danh sach ban nhap.', 'warn');
+      await dismissOverlays();
+      return false;
+    }
+
+    const box = listBox();
+    buttonByText(box, /^edit$/i).click();
+    await pause(700);
+
+    // Chon tung dong. X khong co "chon tat ca"; chan 50 dong cho co diem dung.
+    const rows = [...box.querySelectorAll('article, [data-testid="tweet"]')].slice(0, 50);
+    if (!rows.length) {
+      addLog('Danh sach ban nhap trong.', 'ok');
+      await dismissOverlays();
+      return true;
+    }
+    for (const r of rows) { r.click(); await pause(150); }
+
+    const del = buttonByText(box, /^delete$/i);
+    if (!del) {
+      addLog(`Khong thay nut xoa ban nhap — man hinh dang hien: "${describeOverlay()}"`, 'warn');
+      await dismissOverlays();
+      return false;
+    }
+    del.click();
+    await pause(600);
+
+    // Sheet xac nhan. O day Delete la nut KHANG DINH, nguoc vai tro voi sheet
+    // "Save post?" — nen tim rieng chu khong goi answerSaveSheet.
+    await until(() => document.querySelector('[data-testid="confirmationSheetDialog"]'), 3000);
+    const sheet = document.querySelector('[data-testid="confirmationSheetDialog"]');
+    const yes = buttonByText(sheet, /^delete$/i) ||
+      sheet?.querySelector('[data-testid="confirmationSheetConfirm"]');
+    if (yes) { yes.click(); await pause(900); }
+
+    await dismissOverlays();
+    addLog(`Da xoa ${rows.length} ban nhap da luu.`, 'ok');
+    return true;
   }
 
   /**
@@ -377,12 +475,8 @@
     // bien thanh khoang trang. Phai chen tung dong, giua cac dong dung
     // insertLineBreak (tuong duong nguoi dung bam Enter trong o soan thao).
     for (let i = 1; i < lines.length; i++) {
-      document.execCommand('insertLineBreak', false, null);
-      await sleep(120);
-      if (lines[i]) {
-        document.execCommand('insertText', false, lines[i]);
-        await sleep(120);
-      }
+      await editCmd('insertLineBreak');
+      if (lines[i]) await editCmd('insertText', lines[i]);
     }
 
     const want = text.replace(/\s+/g, ' ').trim();
@@ -390,7 +484,7 @@
     // Doi chu hien du roi hay phan xu. Cham khong phai la sai — ket luan som
     // tren may yeu la bo oan mot bai dung, roi di thang vao nhanh tai lai trang.
     await until(() => seen().startsWith(want.slice(0, 30)), 6000);
-    await sleep(400);              // cho not may ky tu cuoi kip hien
+    await pause(400);              // cho not may ky tu cuoi kip hien
 
     const typed = seen();
     if (!typed) throw new Error('Go chu vao o soan thao that bai');
@@ -559,7 +653,7 @@
    * hanh vi khac han nguoi dung that, vi ung dung X von dieu huong noi bo.
    * @returns {boolean} mo duoc bang SPA hay khong
    */
-  async function openComposerInPlace() {
+  async function openComposerInPlace(allowPurge = true) {
     const btn =
       document.querySelector('[data-testid="SideNav_NewTweet_Button"]') ||
       document.querySelector('a[href="/compose/post"]');
@@ -572,6 +666,15 @@
     try {
       const dialog = await waitFor('[role="dialog"]', 12000);
       await waitFor('[data-testid="tweetTextarea_0"]', 12000, dialog);
+
+      // Con ban nhap da luu thi don truoc khi go. De do lai thi bai nao cung
+      // co nguy co thua ke chu cu, va cang dang cang chong them draft moi.
+      // Don xong phai mo lai o soan thao, va chi mot lan — hong thi di tiep
+      // voi cai dang co, khong quay vong.
+      if (allowPurge && draftsEntry(dialog)) {
+        await purgeDrafts(dialog);
+        return openComposerInPlace(false);
+      }
       return dialog;
     } catch {
       return null;
@@ -984,6 +1087,9 @@
         <div class="xap-row">
           <label><input id="xap-natural" type="checkbox" class="xap-wauto"> nhip tu nhien (tap trung quanh giua khoang)</label>
         </div>
+        <div class="xap-row">
+          <label><input id="xap-slow" type="checkbox" class="xap-wauto"> may cham (gian moi nhip cho ra gap 3)</label>
+        </div>
         <details id="xap-search-box" class="xap-mv">
           <summary class="xap-sum">🔎 Tim theo tu khoa</summary>
           <div class="xap-row"><input id="xap-keyword" type="text" class="xap-w100"
@@ -1062,7 +1168,7 @@
     for (const id of ['xap-gapmin', 'xap-gapmax', 'xap-max', 'xap-loop', 'xap-queue',
                       'xap-keyword', 'xap-exclude', 'xap-minlikes', 'xap-maxsearch',
                       'xap-approval', 'xap-latest', 'xap-hfrom', 'xap-hto', 'xap-natural',
-                      'xap-content-quantity']) {
+                      'xap-slow', 'xap-content-quantity']) {
       $(id).addEventListener('change', syncFromUI);
       $(id).addEventListener('input', syncFromUI);
     }
@@ -1162,6 +1268,7 @@
     state.settings.hourFrom = Math.min(23, num('xap-hfrom', 0));
     state.settings.hourTo = Math.min(24, num('xap-hto', 24));
     state.settings.naturalPace = $('xap-natural').checked;
+    state.settings.slowMode = $('xap-slow').checked;
     save(state);
     render();
   }
@@ -1262,6 +1369,7 @@
     setVal('xap-hfrom', state.settings.hourFrom);
     setVal('xap-hto', state.settings.hourTo);
     setVal('xap-natural', state.settings.naturalPace);
+    setVal('xap-slow', state.settings.slowMode);
     renderCandidates();
     renderLog();
   }
