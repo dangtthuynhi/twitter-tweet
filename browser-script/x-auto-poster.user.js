@@ -8,7 +8,8 @@
 // @match        https://twitter.com/*
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @run-at       document-idle
+// @grant        unsafeWindow
+// @run-at       document-start
 // @homepageURL  https://github.com/dangtthuynhi/twitter-tweet
 // ==/UserScript==
 
@@ -26,6 +27,36 @@
 
 (function () {
   'use strict';
+
+  /**
+   * Chan canh bao "Changes you made may not be saved" cua trinh duyet.
+   *
+   * Hop thoai do la giao dien NATIVE cua Chrome, nam ngoai DOM — khong mot
+   * script nao bam duoc vao no. Chi can o soan thao con chu la X dang ky
+   * beforeunload, va tu do moi location.reload() cua bot deu dung sung cho
+   * nguoi bam tay. Nen phai chan tu goc: nuot moi dang ky 'beforeunload' va
+   * khoa luon thuoc tinh onbeforeunload.
+   *
+   * Doi lai: ban nhap that cua nguoi dung trong tab nay se khong con duoc hoi
+   * truoc khi mat. Tab nay la tab cua bot nen danh chiu.
+   *
+   * Phai chay o document-start, truoc khi X kip dang ky.
+   */
+  (function blockUnloadPrompt() {
+    const W = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    const add = EventTarget.prototype.addEventListener;
+    EventTarget.prototype.addEventListener = function (type, ...rest) {
+      if (type === 'beforeunload') return undefined;
+      return add.call(this, type, ...rest);
+    };
+    for (const target of new Set([W, window])) {
+      try {
+        Object.defineProperty(target, 'onbeforeunload', {
+          configurable: true, get: () => null, set: () => {},
+        });
+      } catch { /* trinh duyet khong cho ghi de thi thoi */ }
+    }
+  })();
 
   const KEY = 'x_auto_poster_state';
   const VERSION = '1.0.0';
@@ -164,20 +195,89 @@
    * sinh ra dung chuoi su kien input ma React dang lang nghe.
    */
   /**
+   * Boi den toan bo noi dung cua DUNG o soan thao nay.
+   *
+   * execCommand khong tac dong len mot element, no tac dong len selection cua
+   * document. Ma el.focus() tren contenteditable cua DraftJS khong dam bao dat
+   * duoc caret vao trong o: modal cua X co bay focus, va trang con mot o inline
+   * cung ten "tweetTextarea_0" nam khuat phia sau. Caret roi ra ngoai thi
+   * selectAll boi den ca trang va delete thanh viec vo ich — ba vong lap deu
+   * that bai y het nhau, khong he co thao tac that nao xay ra.
+   */
+  function selectAllIn(el) {
+    el.focus();
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return !sel.isCollapsed && el.contains(sel.anchorNode);
+  }
+
+  /**
    * Xoa sach o soan thao va KIEM TRA da sach that chua.
    * X co the con giu ban nhap cu; xoa hut ma cu go tiep thi chu moi dinh vao
    * duoi chu cu, thanh mot bai gop nhieu bai.
    */
   async function clearComposer(el) {
     for (let i = 0; i < 3; i++) {
-      el.focus();
+      if (!el.textContent.trim()) return;
+      selectAllIn(el);
       await sleep(120);
-      document.execCommand('selectAll', false, null);
       document.execCommand('delete', false, null);
       await sleep(120);
       if (!el.textContent.trim()) return;
+
+      // delete khong an thi thu de len bang mot chuoi rong — cung mot duong
+      // nhap lieu ma DraftJS dang lang nghe, nhung di qua nhanh khac.
+      selectAllIn(el);
+      document.execCommand('insertText', false, '');
+      await sleep(200);
+      if (!el.textContent.trim()) return;
     }
     throw new Error('Khong xoa duoc chu cu trong o soan thao');
+  }
+
+  /**
+   * Tra loi sheet "Save post?" cua X.
+   *
+   * Tim nut theo chu truoc chu khong theo testid: hai nut nay deo testid
+   * confirmationSheetConfirm/Cancel ma vai tro tung doi cho nhau, doan nham mot
+   * lan la luu draft thay vi vut di — dung cai ta dang muon tranh.
+   */
+  async function answerSaveSheet(choice = 'discard') {
+    // Chi nhan sheet xac nhan. Lay bua mot [role="dialog"] nao do la co luc
+    // vo phai chinh modal soan thao va bam nham nut trong do.
+    const sheet = document.querySelector('[data-testid="confirmationSheetDialog"]') ||
+      [...document.querySelectorAll('[role="dialog"]')]
+        .find((d) => !d.querySelector('[data-testid="tweetTextarea_0"]'));
+    if (!sheet) return false;
+    const want = choice === 'discard'
+      ? /discard|delete|don't save|khong luu|huy|xoa/i
+      : /^save$/i;
+    const btn = [...sheet.querySelectorAll('[role="button"], button')]
+      .find((b) => want.test((b.innerText || '').trim()));
+    const fallback = sheet.querySelector(choice === 'discard'
+      ? '[data-testid="confirmationSheetCancel"]'
+      : '[data-testid="confirmationSheetConfirm"]');
+    const target = btn || fallback;
+    if (!target) return false;
+    target.click();
+    await sleep(500);
+    return true;
+  }
+
+  /**
+   * Vut han ban nhap: dong o soan thao roi bao X dung luu.
+   *
+   * Xoa chu trong o KHONG xoa ban nhap da luu — mo composer lan sau X do lai
+   * chu cu vao, va nut "Drafts" cu day len mai. Day la duong thoat cuoi cung
+   * khi xoa tai cho khong an.
+   */
+  async function discardDraft() {
+    const close = document.querySelector('[data-testid="app-bar-close"]');
+    if (close) { close.click(); await sleep(600); }
+    await answerSaveSheet('discard');
   }
 
   /**
@@ -188,7 +288,14 @@
   async function clearComposerIfAny() {
     const box = document.querySelector('[data-testid="tweetTextarea_0"]');
     if (!box || !box.textContent.trim()) return true;
-    try { await clearComposer(box); return true; } catch { return false; }
+    try { await clearComposer(box); return true; } catch { /* thu cach manh hon */ }
+
+    // Xoa tai cho khong an -> vut han ban nhap. Chi can con mot chu la lan mo
+    // composer ke tiep lai thua ke dung dong rac nay.
+    await discardDraft();
+    await sleep(400);
+    const after = document.querySelector('[data-testid="tweetTextarea_0"]');
+    return !after || !after.textContent.trim();
   }
 
   async function typeInto(el, text) {
@@ -236,6 +343,26 @@
   }
 
   // ---------------------------------------------------------------- hanh dong
+
+  /**
+   * Tim pham vi chua o soan thao dang dung.
+   *
+   * Tren /compose/post, X mo modal DE LEN trang nen — trang nen cung co mot o
+   * "tweetTextarea_0" inline. Lay bua theo document se trung o inline nam khuat
+   * (no dung truoc trong thu tu DOM), chu go vao do thi khong ai thay va o
+   * trong modal van giu nguyen chu cu.
+   */
+  async function composerScope(timeout = 20000) {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+      const dialog = [...document.querySelectorAll('[role="dialog"]')]
+        .find((d) => d.querySelector('[data-testid="tweetTextarea_0"]'));
+      if (dialog) return dialog;
+      if (document.querySelector('[data-testid="tweetTextarea_0"]')) return document;
+      await sleep(300);
+    }
+    return document;
+  }
 
   async function doPostTweet(text, scope = document) {
     const box = await waitFor('[data-testid="tweetTextarea_0"]', 20000, scope);
@@ -369,7 +496,10 @@
   /** Dong o soan thao dang modal sau khi dang xong. */
   async function closeComposer() {
     const close = document.querySelector('[data-testid="app-bar-close"]');
-    if (close) { close.click(); await sleep(500); }
+    if (close) { close.click(); await sleep(600); }
+    // Con chu sot lai thi X bat sheet "Save post?". Khong tra loi thi X mac
+    // dinh LUU, va chinh cai draft do se do nguoc vao o soan thao o bai sau.
+    await answerSaveSheet('discard');
   }
 
   /** Chu dang hien tren hop thoai chan ngang, de con biet X dang noi gi. */
@@ -435,7 +565,7 @@
         return;
       }
       if (job.type === 'tweet') {
-        await doPostTweet(textToPost(job));
+        await doPostTweet(textToPost(job), await composerScope());
         addLog(`Da dang: ${job.text.slice(0, 50)}`, 'ok');
       } else {
         await doRetweet();

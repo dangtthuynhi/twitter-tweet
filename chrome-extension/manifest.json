@@ -12,6 +12,17 @@
         "https://twitter.com/*"
       ],
       "js": [
+        "unload-guard.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ],
+      "js": [
         "content.js"
       ],
       "run_at": "document_idle"
@@ -19,8 +30,13 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["content-lenamiu.json"],
-      "matches": ["https://x.com/*", "https://twitter.com/*"]
+      "resources": [
+        "content-lenamiu.json"
+      ],
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ]
     }
   ]
 }
