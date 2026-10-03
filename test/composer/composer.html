@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../../node_modules/draft-js/dist/Draft.css">
+<style>#root{padding:20px;font:16px system-ui}</style></head>
+<body>
+<!-- Dung lai dung thu X dang dung: o soan thao la Draft.js that, deo
+     data-testid="tweetTextarea_0" y nhu tren x.com. -->
+<div id="root"></div>
+<script src="../../node_modules/react/umd/react.development.js"></script>
+<script src="../../node_modules/react-dom/umd/react-dom.development.js"></script>
+<script src="../../node_modules/immutable/dist/immutable.js"></script>
+<script src="../../node_modules/draft-js/dist/Draft.js"></script>
+<script>
+  const { Editor, EditorState } = Draft;
+  class Composer extends React.Component {
+    constructor(p) { super(p); this.state = { editorState: EditorState.createEmpty() }; }
+    tag() {
+      // React co the dung lai element khi render lai, lam rot thuoc tinh minh
+      // gan tay. Gan lai sau moi lan render cho chac.
+      const el = document.querySelector('.public-DraftEditor-content');
+      if (el) el.setAttribute('data-testid', 'tweetTextarea_0');
+    }
+    componentDidMount() { this.tag(); window.__ready = true; }
+    componentDidUpdate() { this.tag(); }
+    render() {
+      return React.createElement(Editor, {
+        editorState: this.state.editorState,
+        onChange: (es) => {
+          // Day moi la chu X thuc su dem di dang: noi dung trong contentState,
+          // khong phai innerText cua DOM (innerText them thua ky tu xuong dong
+          // o moi khoi rong).
+          window.__text = es.getCurrentContent().getPlainText('\n');
+          this.setState({ editorState: es });
+        },
+        placeholder: "What's happening?",
+      });
+    }
+  }
+  ReactDOM.render(React.createElement(Composer), document.getElementById('root'));
+</script>
+</body></html>

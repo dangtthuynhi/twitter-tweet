@@ -182,19 +182,6 @@
   const paceFactor = () => (state?.settings?.slowMode ? 3 : 1);
   const pause = (ms) => sleep(Math.round(ms * paceFactor()));
 
-  /**
-   * Go mot lenh soan thao, co nhip nghi TRUOC va SAU.
-   *
-   * Lenh truoc vua lam React dung lai mot vong render; go lenh ke tiep ngay
-   * luc do la go vao mot DOM dang thay doi — tren may cham, dung do la cho
-   * hong: lenh dam vao nhau va chu ra sai thu tu.
-   */
-  async function editCmd(cmd, value = null, gap = 120) {
-    await pause(gap);
-    document.execCommand(cmd, false, value);
-    await pause(gap);
-  }
-
   /** Cho mot element xuat hien. Nem loi neu qua han. */
   function waitFor(selector, timeout = 15000, root = document) {
     return new Promise((resolve, reject) => {
@@ -215,9 +202,9 @@
   }
 
   /**
-   * O soan thao cua X la contenteditable cua DraftJS — gan .value hay .textContent
-   * deu khong an vi React khong biet gi. Phai dung execCommand de trinh duyet
-   * sinh ra dung chuoi su kien input ma React dang lang nghe.
+   * O soan thao cua X la contenteditable cua Draft.js — gan .value hay
+   * .textContent deu khong an vi React khong biet gi. Phai di bang su kien
+   * nguoi dung that su sinh ra, de Draft.js tu cap nhat trang thai cua no.
    */
   /**
    * Boi den toan bo noi dung cua DUNG o soan thao nay.
@@ -244,7 +231,9 @@
       range.selectNodeContents(el);
       sel.removeAllRanges();
       sel.addRange(range);
-      return !sel.isCollapsed && el.contains(sel.anchorNode);
+      // Dat duoc vung chon la du. Khong doi hoi vung chon phai co do dai: o
+      // rong thi vung chon thu lai thanh mot diem, va do van la ket qua dung.
+      return el.contains(sel.anchorNode) || sel.anchorNode === el;
     } catch {
       return false;
     }
@@ -270,31 +259,72 @@
   }
 
   /**
-   * Xoa sach o soan thao bang vung chon.
+   * Gia lap thao tac DAN vao o soan thao.
    *
-   * KHONG dung insertText de "de len" o day. DraftJS giu vung chon RIENG cua
-   * no; dat Range bang tay thi no khong chac nhin thay, va khi no khong nhin
-   * thay thi insertText NOI THEM vao cuoi chu khong de len. Thu lai vai lan
-   * la ra bai nhan ban — moi lan hong lai lam no hong them.
+   * Day la thao tac soan thao DUY NHAT ma Draft.js chiu duoc. Da do tung lenh
+   * mot tren mot Draft.js that (xem test/composer/README.md):
    *
-   * Nen o day chi co `delete`, va he thay chu DAI RA la dung ngay: chu dai ra
-   * nghia la lenh dang noi them chu khong xoa, co co lam nua cung chi te hon.
+   *   execCommand('insertText', chuoi co "\n")      -> Draft.js vo, mat chu
+   *   execCommand('insertText') roi 'insertLineBreak' -> Draft.js vo
+   *   execCommand('selectAll') + 'delete'             -> Draft.js vo
+   *   su kien paste                                    -> dung, tron ven
+   *
+   * "Vo" o day la that: React nem "Failed to execute 'removeChild' on 'Node'"
+   * va go han o soan thao khoi trang. Cac lenh execCommand sua DOM thang tay,
+   * ngoai tam kiem soat cua React, nen cay DOM that va cay React hinh dung
+   * lech nhau roi lan render sau no vap. Su kien paste thi khac han: trinh
+   * duyet khong tu lam gi voi no, Draft.js tu nhan va tu cap nhat trang thai
+   * cua minh — dung mot duong, va no hieu san ky tu xuong dong.
+   *
+   * Tra ve co ai nhan xu ly hay khong: Draft.js nhan thi goi preventDefault,
+   * va dispatchEvent bao lai bang false.
+   */
+  function pasteInto(el, text) {
+    try {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', text);
+      return !el.dispatchEvent(new ClipboardEvent('paste', {
+        clipboardData: dt, bubbles: true, cancelable: true,
+      }));
+    } catch {
+      return false;    // trinh duyet khong dung duoc su kien nay
+    }
+  }
+
+  /**
+   * Boi den het roi CAT — cach xoa duy nhat khong lam Draft.js vo.
+   *
+   * Dan mot chuoi rong khong xoa duoc gi: Draft.js bo qua ban dan rong.
+   */
+  function cutAll(el) {
+    if (!selectAllIn(el)) return false;
+    try {
+      el.dispatchEvent(new ClipboardEvent('cut', {
+        clipboardData: new DataTransfer(), bubbles: true, cancelable: true,
+      }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Xoa sach o soan thao, bang thao tac CAT.
+   *
+   * Chu y: `isEmpty` tinh ca truong hop o da roi khoi trang la "sach", nen o
+   * day phai kiem rieng — mot lenh xoa lam vo Draft.js cung lam o bien mat, va
+   * do khong phai la xoa thanh cong.
    */
   async function clearComposer(el, settle = 3000) {
-    const seen = () => el.textContent.replace(/\s+/g, ' ').trim();
-    const before = seen().length;
-
     for (let i = 0; i < 4; i++) {
+      if (!el.isConnected) throw new Error('O soan thao bien mat khi dang don');
       if (isEmpty(el)) return;
-      if (seen().length > before) {
-        throw new Error('O soan thao dai them ra thay vi sach, dung lai');
-      }
 
-      // Boi den that bai = o soan thao vua bien mat khoi trang.
-      if (!selectAllIn(el)) { await pause(400); continue; }
-      await pause(250);              // cho bay focus cua modal yen vi da
-      await editCmd('delete');
-      if (await staysEmpty(el, settle)) return;
+      if (!cutAll(el)) { await pause(400); continue; }
+      if (await staysEmpty(el, settle)) {
+        if (!el.isConnected) throw new Error('O soan thao bien mat khi dang don');
+        return;
+      }
     }
     throw new Error('Khong xoa duoc chu cu trong o soan thao');
   }
@@ -475,40 +505,39 @@
   }
 
   /**
-   * Go `text` vao o soan thao. CHI go vao o da rong.
+   * Go `text` vao o soan thao, thay the sach se moi thu dang co trong do.
    *
-   * Khong co duong nao dang tin de "de len" chu cu: lenh go chu di theo vung
-   * chon cua DraftJS chu khong theo vung chon ta dat, nen go de len de thanh
-   * go noi them. Sach truoc, go sau — va khong sach duoc thi bo bai, de nguoi
-   * goi vut ban nhap bang giao dien roi mo lai o soan thao moi.
+   * Boi den toan bo roi dan de len — MOT thao tac duy nhat lam ca hai viec.
+   * Khong tach thanh "xoa roi go": giua hai buoc do luon co mot khoanh khac o
+   * dang rong, va neu buoc go khong di dung duong thi chu cu quay ve roi chu
+   * moi dinh vao sau no, thanh bai gop hai bai.
+   *
+   * Dan de len cung an toan khi lap lai: lan sau boi den het roi dan tiep thi
+   * van ra dung mot ban, khong bao gio cong don.
    */
   async function typeInto(el, text) {
-    const lines = text.split('\n');
-
-    if (!isEmpty(el)) {
-      addLog('O soan thao con chu cu, dang don...', 'warn');
-      await clearComposer(el);
-    }
-
-    // DraftJS khong hieu ky tu "\n" trong insertText — no se bi nuot hoac
-    // bien thanh khoang trang. Phai chen tung dong, giua cac dong dung
-    // insertLineBreak (tuong duong nguoi dung bam Enter trong o soan thao).
-    for (let i = 0; i < lines.length; i++) {
-      if (i > 0) await editCmd('insertLineBreak');
-      if (lines[i]) await editCmd('insertText', lines[i]);
-    }
-
+    // innerText chu khong phai textContent: textContent noi cac khoi cua
+    // Draft.js lien tuc khong mot khoang trang, nen bai nhieu dong doc ra
+    // thanh "dong mot#hashtag" va so sanh nao cung truot.
     const want = text.replace(/\s+/g, ' ').trim();
-    const seen = () => el.textContent.replace(/\s+/g, ' ').trim();
-    // Doi chu hien du roi hay phan xu. Cham khong phai la sai — ket luan som
-    // tren may yeu la bo oan mot bai dung, roi di thang vao nhanh tai lai trang.
-    await until(() => seen().startsWith(want.slice(0, 30)), 6000);
-    await pause(400);              // cho not may ky tu cuoi kip hien
+    const seen = () => (el.innerText || '').replace(/\s+/g, ' ').trim();
 
+    if (!isEmpty(el)) addLog('O soan thao con chu cu, se de len.', 'warn');
+
+    let done = false;
+    for (let i = 0; i < 3 && !done; i++) {
+      if (!el.isConnected) throw new Error('O soan thao bien mat khi dang go');
+      if (!selectAllIn(el)) { await pause(400); continue; }
+      await pause(250);              // cho Draft.js kip nhan vung boi den moi
+      if (!pasteInto(el, text)) { await pause(400); continue; }
+      done = await until(() => seen() === want, 6000);
+    }
+
+    if (!el.isConnected) throw new Error('O soan thao bien mat khi dang go');
     const typed = seen();
     if (!typed) throw new Error('Go chu vao o soan thao that bai');
-    // Go dung thi o soan thao phai BAT DAU bang chu vua go. Neu con sot chu cu
-    // thi no bat dau bang chu cu -> bo bai nay, dung de dang ra bai dinh chum.
+    // Chu cu con sot lai thi no nam truoc chu moi -> bo bai, dung de dang ra
+    // bai dinh chum.
     if (!typed.startsWith(want.slice(0, 30))) {
       throw new Error('O soan thao con chu cu, bo qua bai nay');
     }

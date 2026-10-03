@@ -15,6 +15,8 @@ import { loadProxyList, rankProxies } from './proxies.js';
 import { ipwatch } from './ipwatch.js';
 import { scanAll } from './hashtag.js';
 import { buildDashboard } from './dashboard.js';
+import { collectTrend } from './trend.js';
+import { buildTrendDashboard } from './trend-dashboard.js';
 import { fetchAllReplies, saveReplies, summarize, parseTweetId,
          fetchAllRetweeters, saveRetweeters } from './replies.js';
 import { checkEntry, resolveEntries, saveEntries } from './giveaway.js';
@@ -27,7 +29,7 @@ function parseArgs(argv) {
     const a = argv[i];
     if (!a.startsWith('--')) { opts._.push(a); continue; }
     const key = a.slice(2);
-    if (['dry', 'force', 'help', 'all', 'report'].includes(key)) { opts[key] = true; continue; }
+    if (['dry', 'force', 'help', 'all', 'report', 'only-html'].includes(key)) { opts[key] = true; continue; }
     const val = argv[++i];
     if (key === 'media') opts.media.push(val);
     else opts[key] = val;
@@ -46,6 +48,11 @@ Lenh:
   ipwatch [--report]     Ghi lai IP public cua duong truyen (de do do on dinh)
   hashtag [--sample N]   Quet hashtag, tu chinh cua so de lay ~N bai moi lan
   dashboard [--days N]   Sinh dashboard.html tu du lieu da quet
+  trend <q1> [q2 ...]    Phan tich sau mot cua so co dinh (lay mau phan tang)
+                         --from "2026-10-02T20:00+07:00" --to "..."
+                         [--slices 48] so lat cat  [--target 45] bai moi lat
+                         [--out ten.json] [--html ten.html] [--title "..."]
+                         [--only-html] chi ve lai tu du lieu da luu, khong goi API
   replies <link|id>      Lay toan bo comment cua 1 bai, luu JSON + CSV
                          [--max N] tran so reply (mac dinh 500)
                          [--format json|csv|both]
@@ -411,6 +418,41 @@ async function main() {
     case 'dashboard':
       buildDashboard({ days: Number(opts.days) || 7, out: opts.out || 'dashboard.html' });
       break;
+    case 'trend': {
+      const queries = opts._.slice(1);
+      const html = opts.html || 'dashboard-trend.html';
+      const title = opts.title || 'Phan tich hashtag';
+      const name = opts.out || 'trend.json';
+      const file = path.resolve(process.cwd(), 'data/trend', name);
+
+      if (opts['only-html']) {                 // ve lai tu du lieu da co, mien phi
+        buildTrendDashboard(file, { out: html, title });
+        break;
+      }
+      if (!queries.length) {
+        log.error('Thieu query. Vi du: node src/cli.js trend "#abc" --from "2026-10-02T20:00+07:00" --to "2026-10-03T20:00+07:00"');
+        process.exitCode = 1;
+        break;
+      }
+      const toSec = (v, def) => {
+        if (!v) return def;
+        const t = Date.parse(v);
+        if (!Number.isFinite(t)) throw new Error(`Khong hieu moc thoi gian "${v}" (dung ISO: 2026-10-02T20:00+07:00)`);
+        return Math.floor(t / 1000);
+      };
+      const to = toSec(opts.to, Math.floor(Date.now() / 1000));
+      const from = toSec(opts.from, to - 86400);
+      if (from >= to) throw new Error('--from phai truoc --to');
+
+      await collectTrend({
+        queries, from, to,
+        slices: Number(opts.slices) || 48,
+        target: Number(opts.target) || 45,
+        out: name,
+      });
+      buildTrendDashboard(file, { out: html, title });
+      break;
+    }
     case 'ipwatch':
       await ipwatch({ report: opts.report });
       break;

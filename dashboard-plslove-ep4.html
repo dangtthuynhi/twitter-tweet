@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LENAMIU PLS LOVE EP4 — 24 giờ</title>
+<style>
+  :root{color-scheme:light;
+    --surface-1:#fcfcfb; --plane:#f9f9f7;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+    --grid:#e4e3dc; --axis:#c3c2b7; --border:rgba(11,11,11,.10); --wash:rgba(11,11,11,.04);
+    --series-1:#2a78d6;
+    --series-2:#eb6834;
+    --series-3:#1baf7a;
+    --series-4:#eda100;
+    --series-5:#e87ba4;
+  }
+  @media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){color-scheme:dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --text-primary:#fff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#3d3d39; --border:rgba(255,255,255,.10); --wash:rgba(255,255,255,.05);
+    --series-1:#3987e5;
+    --series-2:#d95926;
+    --series-3:#199e70;
+    --series-4:#c98500;
+    --series-5:#d55181;
+  }}
+  :root[data-theme="dark"]{color-scheme:dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --text-primary:#fff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#3d3d39; --border:rgba(255,255,255,.10); --wash:rgba(255,255,255,.05);
+    --series-1:#3987e5;
+    --series-2:#d95926;
+    --series-3:#199e70;
+    --series-4:#c98500;
+    --series-5:#d55181;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--plane);color:var(--text-primary);
+    font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .viz-root{max-width:960px;margin:0 auto;padding:30px 20px 60px}
+  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:3px}
+  h1{font-size:21px;margin:0;letter-spacing:-.01em}
+  .sub{color:var(--text-secondary);font-size:13px;margin:0 0 20px}
+  .toggle{margin-left:auto;background:var(--surface-1);color:var(--text-secondary);
+    border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12px;cursor:pointer}
+  .toggle:hover{background:var(--wash)}
+  .card{background:var(--surface-1);border:1px solid var(--border);border-radius:14px;
+    padding:20px 22px;margin-bottom:16px}
+  h2{font-size:14px;margin:0 0 3px;font-weight:600}
+  .cap{color:var(--text-secondary);font-size:12.5px;margin:0 0 16px;max-width:66ch}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px;margin-bottom:16px}
+  .tile{background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:15px 17px}
+  .tile .lab{color:var(--text-secondary);font-size:12px;margin-bottom:7px}
+  .tile .val{font-size:27px;font-weight:600;letter-spacing:-.025em;line-height:1.1}
+  .tile.hero .val{font-size:46px}
+  .tile .s{color:var(--muted);font-size:11.5px;margin-top:5px}
+  svg{width:100%;height:auto;display:block;overflow:visible}
+  .grid{stroke:var(--grid);stroke-width:1}
+  .axis{stroke:var(--axis);stroke-width:1}
+  .tick{fill:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+  .tick.dim{opacity:.7;font-size:10px}
+  .line{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+  .dot{stroke:var(--surface-1);stroke-width:2}
+  .endlabel{fill:var(--text-secondary);font-size:11.5px}
+  .leader{fill:none;stroke-width:1;opacity:.5}
+  .hair{stroke:var(--axis);stroke-width:1}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-size:12.5px;color:var(--text-secondary)}
+  .legend i{display:inline-block;width:15px;height:2px;border-radius:1px;vertical-align:middle;margin-right:7px}
+  .bars{display:flex;flex-direction:column;gap:8px}
+  .bar-row{display:grid;grid-template-columns:var(--nw,160px) 1fr 58px;align-items:center;gap:11px;
+    border-radius:5px;outline-offset:2px}
+  .bar-row:hover,.bar-row:focus-visible{background:var(--wash)}
+  .bar-name{font-size:12.5px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bar-track{height:20px;display:flex;align-items:center}
+  .bar-fill{height:14px;border-radius:0 4px 4px 0}
+  .bar-val{font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text-secondary)}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--text-secondary);font-weight:600;font-size:12px;white-space:nowrap}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  td a{color:var(--text-primary);text-decoration:underline;text-decoration-color:var(--axis);
+    text-underline-offset:2px}
+  td a:hover{text-decoration-color:var(--text-primary)}
+  .swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:8px;vertical-align:-1px}
+  details{margin-top:14px}
+  summary{cursor:pointer;font-size:12.5px;color:var(--text-secondary);padding:5px 0}
+  summary:hover{color:var(--text-primary)}
+  .empty{color:var(--muted);font-size:13px}
+  .note{color:var(--muted);font-size:11.5px;margin:14px 0 0;line-height:1.6}
+  .tw{font-size:12.5px;color:var(--text-secondary);max-width:62ch;word-break:break-word}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px 22px;margin:0}
+  .fact{border-left:2px solid var(--border);padding-left:12px}
+  .fact b{display:block;font-size:20px;font-weight:600;letter-spacing:-.02em}
+  .fact span{color:var(--text-secondary);font-size:12px}
+  #tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .09s;
+    background:var(--text-primary);color:var(--plane);padding:7px 10px;border-radius:7px;
+    font-size:12px;line-height:1.5;z-index:9;max-width:320px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+  #tip .r{display:flex;align-items:center;gap:7px;white-space:nowrap}
+  #tip .k{display:inline-block;width:12px;height:2px;border-radius:1px;flex:none}
+  #tip .v{font-weight:600;font-variant-numeric:tabular-nums}
+  #tip .n{opacity:.72}
+  #tip .h{font-weight:600;margin-bottom:4px}
+</style></head>
+<body><div class="viz-root">
+
+<header><h1>LENAMIU PLS LOVE EP4 — 24 giờ</h1>
+  <button class="toggle" id="themeBtn">Sáng / Tối</button></header>
+<p class="sub">02/10 20:00 → 03/10 20:00 (giờ VN, +07) · lấy mẫu 48 lát cắt · 4,036 bài thu thập · chi phí $0.701</p>
+
+<div class="tiles">
+  <div class="tile hero"><div class="lab">Tổng bài trong 24h</div>
+    <div class="val">80k</div><div class="s">±2% · ước tính từ mẫu</div></div>
+  <div class="tile"><div class="lab">Đỉnh</div>
+    <div class="val">16k/giờ</div><div class="s">lúc 02/10 20:45</div></div>
+  <div class="tile"><div class="lab">Trung bình</div>
+    <div class="val">3.3k/giờ</div><div class="s">suốt 24 giờ</div></div>
+  <div class="tile"><div class="lab">Tài khoản khác nhau</div>
+    <div class="val">573</div><div class="s">trong 1,985 bài lấy mẫu</div></div>
+  <div class="tile"><div class="lab">Lượt xem ước tính</div>
+    <div class="val">71M</div><div class="s">888 lượt/bài</div></div></div>
+
+<div class="card">
+  <h2>Nhịp đăng theo thời gian</h2>
+  <p class="cap">Số bài mỗi giờ, đo bằng cách đếm chính xác một lát cắt hẹp mỗi 30 phút rồi suy ra tốc độ. Chấm tròn là đỉnh của từng hashtag. Di chuột để xem cả hai mốc cùng lúc.</p>
+  <svg viewBox="0 0 840 330" id="vol" role="img" aria-label="Số bài mỗi giờ của hai hashtag trong 24 giờ"><line class="grid" x1="58" y1="286.0" x2="716" y2="286.0"/><text class="tick" x="48" y="290.0" text-anchor="end">0</text><line class="grid" x1="58" y1="210.1" x2="716" y2="210.1"/><text class="tick" x="48" y="214.1" text-anchor="end">5k</text><line class="grid" x1="58" y1="134.2" x2="716" y2="134.2"/><text class="tick" x="48" y="138.2" text-anchor="end">10k</text><line class="grid" x1="58" y1="58.3" x2="716" y2="58.3"/><text class="tick" x="48" y="62.3" text-anchor="end">15k</text><line class="axis" x1="58" y1="286" x2="716" y2="286"/><text class="tick" x="79.0" y="306" text-anchor="middle">21:00</text><text class="tick" x="163.0" y="306" text-anchor="middle">00:00</text><text class="tick dim" x="163.0" y="320" text-anchor="middle">3/10</text><text class="tick" x="247.0" y="306" text-anchor="middle">03:00</text><text class="tick" x="331.0" y="306" text-anchor="middle">06:00</text><text class="tick" x="415.0" y="306" text-anchor="middle">09:00</text><text class="tick" x="499.0" y="306" text-anchor="middle">12:00</text><text class="tick" x="583.0" y="306" text-anchor="middle">15:00</text><text class="tick" x="667.0" y="306" text-anchor="middle">18:00</text><text class="tick dim" x="58" y="320" text-anchor="start">2/10</text><path class="line" stroke="var(--series-1)" d="M58.0,217.7L72.0,43.1L86.0,122.1L100.0,176.7L114.0,160.1L128.0,215.0L142.0,165.8L156.0,190.4L170.0,210.3L184.0,234.8L198.0,246.2L212.0,247.2L226.0,251.3L240.0,248.3L254.0,254.0L268.0,260.5L282.0,268.9L296.0,263.6L310.0,264.6L324.0,272.2L338.0,269.4L352.0,268.7L366.0,268.7L380.0,268.7L394.0,262.5L408.0,264.1L422.0,253.1L436.0,256.1L450.0,263.3L464.0,269.5L478.0,255.0L492.0,261.8L506.0,265.1L520.0,252.2L534.0,253.1L548.0,258.3L562.0,251.6L576.0,243.5L590.0,261.5L604.0,227.0L618.0,176.7L632.0,219.5L646.0,247.6L660.0,225.4L674.0,238.0L688.0,239.9L702.0,229.3L716.0,242.8"/><circle class="dot peak" cx="72.0" cy="43.1" r="4.5" fill="var(--series-1)"/><path class="line" stroke="var(--series-2)" d="M58.0,220.4L72.0,62.0L86.0,127.0L100.0,176.7L114.0,155.3L128.0,211.2L142.0,171.8L156.0,201.5L170.0,218.2L184.0,231.4L198.0,247.1L212.0,245.2L226.0,254.1L240.0,253.4L254.0,256.9L268.0,261.9L282.0,269.4L296.0,265.0L310.0,266.8L324.0,274.9L338.0,269.5L352.0,270.2L366.0,268.5L380.0,270.4L394.0,265.5L408.0,267.3L422.0,255.0L436.0,260.4L450.0,262.7L464.0,269.9L478.0,257.2L492.0,262.2L506.0,265.8L520.0,254.6L534.0,256.6L548.0,261.3L562.0,251.2L576.0,243.7L590.0,261.5L604.0,224.8L618.0,186.3L632.0,216.1L646.0,251.7L660.0,228.3L674.0,241.5L688.0,244.3L702.0,233.2L716.0,241.8"/><circle class="dot peak" cx="72.0" cy="62.0" r="4.5" fill="var(--series-2)"/><text class="endlabel" x="731.0" y="245.8">#PlsLoveรักไ…</text><path class="leader" stroke="var(--series-1)" d="M721.0,242.8L725.0,256.8L728.0,256.8"/><text class="endlabel" x="731.0" y="260.8">LENAMIU PLS …</text><line class="hair" id="hair" x1="0" y1="14" x2="0" y2="286" style="display:none"/><g id="hdots"></g><rect id="hit" x="58" y="14" width="658" height="272" fill="transparent"/></svg>
+  <div class="legend"><span><i style="background:var(--series-1)"></i>LENAMIU PLS LOVE EP4</span><span><i style="background:var(--series-2)"></i>#PlsLoveรักได้ไหมEP4</span></div>
+  <p class="note">Hai hashtag xuất hiện cùng nhau trong hầu hết bài đăng, nên hai đường gần như trùng — đó là <b>cùng một tập tweet</b>, không phải hai làn sóng độc lập. Cộng hai con số lại là đếm hai lần.</p>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Tài khoản đăng nhiều nhất</h2>
+    <p class="cap">Đếm trong 1,985 bài lấy mẫu của LENAMIU PLS LOVE EP4.</p>
+    <div class="bars" style="--nw:150px">
+    <div class="bar-row" data-tip="@lena_miu70339 · 43 bài trong mẫu · 376 follower · ước 1.7k bài cả ngày" tabindex="0">
+      <div class="bar-name">@lena_miu70339</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--series-1)"></div></div>
+      <div class="bar-val">43</div>
+    </div>
+    <div class="bar-row" data-tip="@leo208124 · 43 bài trong mẫu · 244 follower · ước 1.7k bài cả ngày" tabindex="0">
+      <div class="bar-name">@leo208124</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--series-1)"></div></div>
+      <div class="bar-val">43</div>
+    </div>
+    <div class="bar-row" data-tip="@StellaRelaqvn · 37 bài trong mẫu · 244 follower · ước 1.5k bài cả ngày" tabindex="0">
+      <div class="bar-name">@StellaRelaqvn</div>
+      <div class="bar-track"><div class="bar-fill" style="width:86.0%;background:var(--series-1)"></div></div>
+      <div class="bar-val">37</div>
+    </div>
+    <div class="bar-row" data-tip="@LenaMiu_CH3 · 36 bài trong mẫu · 78,612 follower · ước 1.4k bài cả ngày" tabindex="0">
+      <div class="bar-name">@LenaMiu_CH3</div>
+      <div class="bar-track"><div class="bar-fill" style="width:83.7%;background:var(--series-1)"></div></div>
+      <div class="bar-val">36</div>
+    </div>
+    <div class="bar-row" data-tip="@Bemyae2511 · 31 bài trong mẫu · 452 follower · ước 1.2k bài cả ngày" tabindex="0">
+      <div class="bar-name">@Bemyae2511</div>
+      <div class="bar-track"><div class="bar-fill" style="width:72.1%;background:var(--series-1)"></div></div>
+      <div class="bar-val">31</div>
+    </div>
+    <div class="bar-row" data-tip="@mygumberbear · 29 bài trong mẫu · 1,932 follower · ước 1.2k bài cả ngày" tabindex="0">
+      <div class="bar-name">@mygumberbear</div>
+      <div class="bar-track"><div class="bar-fill" style="width:67.4%;background:var(--series-1)"></div></div>
+      <div class="bar-val">29</div>
+    </div>
+    <div class="bar-row" data-tip="@Callmeyourwife1 · 28 bài trong mẫu · 52 follower · ước 1.1k bài cả ngày" tabindex="0">
+      <div class="bar-name">@Callmeyourwife1</div>
+      <div class="bar-track"><div class="bar-fill" style="width:65.1%;background:var(--series-1)"></div></div>
+      <div class="bar-val">28</div>
+    </div>
+    <div class="bar-row" data-tip="@chutratra · 27 bài trong mẫu · 159 follower · ước 1.1k bài cả ngày" tabindex="0">
+      <div class="bar-name">@chutratra</div>
+      <div class="bar-track"><div class="bar-fill" style="width:62.8%;background:var(--series-1)"></div></div>
+      <div class="bar-val">27</div>
+    </div>
+    <div class="bar-row" data-tip="@Mandeukieblue · 27 bài trong mẫu · 581 follower · ước 1.1k bài cả ngày" tabindex="0">
+      <div class="bar-name">@Mandeukieblue</div>
+      <div class="bar-track"><div class="bar-fill" style="width:62.8%;background:var(--series-1)"></div></div>
+      <div class="bar-val">27</div>
+    </div>
+    <div class="bar-row" data-tip="@Cheemsweet · 24 bài trong mẫu · 123 follower · ước 965 bài cả ngày" tabindex="0">
+      <div class="bar-name">@Cheemsweet</div>
+      <div class="bar-track"><div class="bar-fill" style="width:55.8%;background:var(--series-1)"></div></div>
+      <div class="bar-val">24</div>
+    </div>
+    <div class="bar-row" data-tip="@buniestt_ · 23 bài trong mẫu · 569 follower · ước 925 bài cả ngày" tabindex="0">
+      <div class="bar-name">@buniestt_</div>
+      <div class="bar-track"><div class="bar-fill" style="width:53.5%;background:var(--series-1)"></div></div>
+      <div class="bar-val">23</div>
+    </div>
+    <div class="bar-row" data-tip="@JaneMiller__ · 22 bài trong mẫu · 360 follower · ước 885 bài cả ngày" tabindex="0">
+      <div class="bar-name">@JaneMiller__</div>
+      <div class="bar-track"><div class="bar-fill" style="width:51.2%;background:var(--series-1)"></div></div>
+      <div class="bar-val">22</div>
+    </div></div>
+  </div>
+  <div class="card">
+    <h2>Ngôn ngữ</h2>
+    <p class="cap">Theo nhãn ngôn ngữ X gán cho từng bài. Bài ngắn toàn emoji và tag người hay bị gán nhầm — đó là phần “không rõ” và vài nhãn lạ ở cuối.</p>
+    <div class="bars" style="--nw:130px">
+    <div class="bar-row" data-tip="Anh: 682/1985 bài trong mẫu — 34%" tabindex="0">
+      <div class="bar-name">Anh (en)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--series-2)"></div></div>
+      <div class="bar-val">34%</div>
+    </div>
+    <div class="bar-row" data-tip="Việt: 512/1985 bài trong mẫu — 26%" tabindex="0">
+      <div class="bar-name">Việt (vi)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:75.1%;background:var(--series-2)"></div></div>
+      <div class="bar-val">26%</div>
+    </div>
+    <div class="bar-row" data-tip="Không rõ: 300/1985 bài trong mẫu — 15%" tabindex="0">
+      <div class="bar-name">Không rõ (und)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:44.0%;background:var(--series-2)"></div></div>
+      <div class="bar-val">15%</div>
+    </div>
+    <div class="bar-row" data-tip="Thái: 208/1985 bài trong mẫu — 10%" tabindex="0">
+      <div class="bar-name">Thái (th)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:30.5%;background:var(--series-2)"></div></div>
+      <div class="bar-val">10%</div>
+    </div>
+    <div class="bar-row" data-tip="Miến Điện: 88/1985 bài trong mẫu — 4%" tabindex="0">
+      <div class="bar-name">Miến Điện (my)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:12.9%;background:var(--series-2)"></div></div>
+      <div class="bar-val">4%</div>
+    </div>
+    <div class="bar-row" data-tip="Estonia: 55/1985 bài trong mẫu — 3%" tabindex="0">
+      <div class="bar-name">Estonia (et)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:8.1%;background:var(--series-2)"></div></div>
+      <div class="bar-val">3%</div>
+    </div>
+    <div class="bar-row" data-tip="Tagalog: 52/1985 bài trong mẫu — 3%" tabindex="0">
+      <div class="bar-name">Tagalog (tl)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:7.6%;background:var(--series-2)"></div></div>
+      <div class="bar-val">3%</div>
+    </div>
+    <div class="bar-row" data-tip="Bồ Đào Nha: 29/1985 bài trong mẫu — 1%" tabindex="0">
+      <div class="bar-name">Bồ Đào Nha (pt)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:4.3%;background:var(--series-2)"></div></div>
+      <div class="bar-val">1%</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Chân dung hoạt động</h2>
+  <p class="cap">Những chỉ số cho biết trend này do người xem thật hay do cày tag tạo ra.</p>
+  <div class="facts">
+    <div class="fact"><b>3.5</b><span>bài mỗi tài khoản — 573 tài khoản trong 1,985 bài mẫu</span></div>
+    <div class="fact"><b>51%</b><span>tài khoản chỉ đăng đúng 1 bài</span></div>
+    <div class="fact"><b>16%</b><span>lượng bài đến từ 10 tài khoản đăng nhiều nhất</span></div>
+    <div class="fact"><b>64%</b><span>là trả lời người khác, không phải bài gốc</span></div>
+    <div class="fact"><b>58%</b><span>không có lượt thích nào — trung vị đúng bằng 0</span></div>
+    <div class="fact"><b>2,592</b><span>lượt thích của nhóm 1% dẫn đầu — chính nhóm này kéo trung bình lên 69</span></div>
+    <div class="fact"><b>8%</b><span>từ tài khoản lập dưới 90 ngày (trung vị 244 follower)</span></div>
+    <div class="fact"><b>90%</b><span>bài mang <i>cả hai</i> hashtag cùng lúc</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Bài nổi bật nhất</h2>
+  <p class="cap">Theo xếp hạng Top của chính X trong cửa sổ này.</p>
+  <table><thead><tr><th>Tài khoản</th><th>Nội dung</th><th class="n">Thích</th><th class="n">RT</th><th class="n">Xem</th></tr></thead>
+  <tbody><tr>
+    <td style="white-space:nowrap"><a href="https://x.com/miunatshaa/status/2106025335523536925" target="_blank" rel="noopener">@miunatshaa</a></td>
+    <td class="tw">อยากอยู่กับ“ภีม”ทั้งคืนเลย LENAMIU PLS LOVE EP4 #PlsLoveรักได้ไหมEP4 https://t.co/2ONIbrfiLc</td>
+    <td class="n">21,760</td><td class="n">6,005</td><td class="n">214,845</td></tr><tr>
+    <td style="white-space:nowrap"><a href="https://x.com/lena__lorena/status/2106009064887197793" target="_blank" rel="noopener">@lena__lorena</a></td>
+    <td class="tw">พร้อมหวานกับภีมป่านยางงงง 😚😚🤭🫣🫢🫪😮‍💨 LENAMIU PLS LOVE EP4 #PlsLoveรักได้ไหมEP4 https://t.co/65ntWoVWMZ</td>
+    <td class="n">19,883</td><td class="n">5,249</td><td class="n">197,769</td></tr><tr>
+    <td style="white-space:nowrap"><a href="https://x.com/lena__lorena/status/2106026969930531038" target="_blank" rel="noopener">@lena__lorena</a></td>
+    <td class="tw">ตอนอ่านบทซีนยอมคุกเข่า ยอมดื่มหมดนั่นเพื่อป่านคือบับบบ ภีมรักป่านมากจริงๆค่ะ🥺🥹🥺🥹🥺🥹 LENAMIU PLS LOVE EP4 #PlsLoveรักได้ไหมEP4</td>
+    <td class="n">13,525</td><td class="n">4,142</td><td class="n">215,875</td></tr><tr>
+    <td style="white-space:nowrap"><a href="https://x.com/isbellaa11/status/2106035971556839848" target="_blank" rel="noopener">@isbellaa11</a></td>
+    <td class="tw">🧸: P’Au, can we do the briefing later? I really can’t wait to kiss her anymore. P’Au: What do I have to deal with every single day? 🦋: Let</td>
+    <td class="n">13,560</td><td class="n">2,173</td><td class="n">165,054</td></tr><tr>
+    <td style="white-space:nowrap"><a href="https://x.com/LenaMiu_CH3/status/2106024162196390035" target="_blank" rel="noopener">@LenaMiu_CH3</a></td>
+    <td class="tw">โอ่ยย อยากมีกำลังใจแบบนี้ก่อนไปทำงานบ้างง🫶🏻 บักภีมพูด &quot;นะคะ&quot; บักภีมพูด &quot;นะคะ&quot; บักภีมพูด &quot;นะคะ&quot; บักภีมพูด &quot;นะคะ&quot; บักภีมพูด &quot;นะคะ&quot; LENAMIU P</td>
+    <td class="n">10,416</td><td class="n">3,396</td><td class="n">225,681</td></tr><tr>
+    <td style="white-space:nowrap"><a href="https://x.com/LenaMiu_CH3/status/2106300723952595435" target="_blank" rel="noopener">@LenaMiu_CH3</a></td>
+    <td class="tw">ให้โสดแค่นุ้งนี้เลย เครเลย🫵 LENAMIU PLS LOVE EP4 #PlsLoveรักได้ไหมEP4 https://t.co/6q4v68yGw4</td>
+    <td class="n">6,508</td><td class="n">1,878</td><td class="n">55,012</td></tr><tr>
+    <td style="white-space:nowrap"><a href="https://x.com/LenaMiu_CH3/status/2106291060536492491" target="_blank" rel="noopener">@LenaMiu_CH3</a></td>
+    <td class="tw">จิ้งโจ้ ✅ จิ้งหรีด ✅✅ ตั๊กแตน ✅✅✅ LENAMIU PLS LOVE EP4 #PlsLoveรักได้ไหมEP4 https://t.co/MX7Sx7QYf6</td>
+    <td class="n">5,755</td><td class="n">1,608</td><td class="n">57,554</td></tr><tr>
+    <td style="white-space:nowrap"><a href="https://x.com/bonivyy/status/2106035183476732043" target="_blank" rel="noopener">@bonivyy</a></td>
+    <td class="tw">🧸can we do the briefing later? i really want her to kiss me already 🦋can i try kissing nong first, just once? we haven’t kissed in a long </td>
+    <td class="n">5,119</td><td class="n">766</td><td class="n">77,472</td></tr><tr>
+    <td style="white-space:nowrap"><a href="https://x.com/ecbae_/status/2106038188972376502" target="_blank" rel="noopener">@ecbae_</a></td>
+    <td class="tw">Pheem: Pack your things and get out of my house. Get out of my life. I don't want to see you again. NOOOOO 💔💔💔💔💔💔💔💔💔💔 LENAMIU PLS </td>
+    <td class="n">4,692</td><td class="n">561</td><td class="n">131,101</td></tr><tr>
+    <td style="white-space:nowrap"><a href="https://x.com/LenaMiu_CH3/status/2106330924010909984" target="_blank" rel="noopener">@LenaMiu_CH3</a></td>
+    <td class="tw">พิ่ลีน่าหยุดแกงน้องเดี๋ยวนี้ LENAMIU PLS LOVE EP4 #PlsLoveรักได้ไหมEP4 https://t.co/Mqs8gJeu7r</td>
+    <td class="n">3,189</td><td class="n">1,021</td><td class="n">22,964</td></tr></tbody></table>
+</div>
+
+<div class="card">
+  <h2>Số liệu đầy đủ</h2>
+  <p class="cap">Cùng dữ liệu với biểu đồ ở trên, dạng bảng.</p>
+  <table><thead><tr><th>Hashtag</th><th class="n">Ước tính 24h</th><th class="n">Sai số</th>
+    <th class="n">Đỉnh/giờ</th><th class="n">Đáy/giờ</th><th class="n">Mẫu</th><th class="n">Tài khoản</th></tr></thead>
+  <tbody><tr>
+    <td><i class="swatch" style="background:var(--series-1)"></i>LENAMIU PLS LOVE EP4</td>
+    <td class="n">79,809</td><td class="n">±2%</td>
+    <td class="n">16,000</td><td class="n">908</td>
+    <td class="n">1,985</td><td class="n">573</td></tr><tr>
+    <td><i class="swatch" style="background:var(--series-2)"></i>#PlsLoveรักได้ไหมEP4</td>
+    <td class="n">76,303</td><td class="n">±2%</td>
+    <td class="n">14,760</td><td class="n">731</td>
+    <td class="n">2,051</td><td class="n">588</td></tr></tbody></table>
+
+  <details><summary>Bảng từng lát cắt 30 phút (48 dòng)</summary>
+    <table style="margin-top:10px"><thead><tr><th>Mốc (+07)</th>
+      <th class="n">LENAMIU PLS L</th><th class="n">#PlsLoveรักได</th></tr></thead>
+    <tbody><tr><td>02/10 20:15</td>
+      <td class="n">4,500</td><td class="n">4,320</td>
+    </tr><tr><td>02/10 20:45</td>
+      <td class="n">16,000</td><td class="n">14,760</td>
+    </tr><tr><td>02/10 21:15</td>
+      <td class="n">10,800</td><td class="n">10,473</td>
+    </tr><tr><td>02/10 21:45</td>
+      <td class="n">7,200</td><td class="n">7,200</td>
+    </tr><tr><td>02/10 22:15</td>
+      <td class="n">8,296</td><td class="n">8,609</td>
+    </tr><tr><td>02/10 22:45</td>
+      <td class="n">4,680</td><td class="n">4,926</td>
+    </tr><tr><td>02/10 23:15</td>
+      <td class="n">7,920</td><td class="n">7,527</td>
+    </tr><tr><td>02/10 23:45</td>
+      <td class="n">6,300</td><td class="n">5,564</td>
+    </tr><tr><td>03/10 00:15</td>
+      <td class="n">4,985</td><td class="n">4,469</td>
+    </tr><tr><td>03/10 00:45</td>
+      <td class="n">3,375</td><td class="n">3,600</td>
+    </tr><tr><td>03/10 01:15</td>
+      <td class="n">2,625</td><td class="n">2,560</td>
+    </tr><tr><td>03/10 01:45</td>
+      <td class="n">2,555</td><td class="n">2,686</td>
+    </tr><tr><td>03/10 02:15</td>
+      <td class="n">2,286</td><td class="n">2,100</td>
+    </tr><tr><td>03/10 02:45</td>
+      <td class="n">2,485</td><td class="n">2,151</td>
+    </tr><tr><td>03/10 03:15</td>
+      <td class="n">2,105</td><td class="n">1,920</td>
+    </tr><tr><td>03/10 03:45</td>
+      <td class="n">1,683</td><td class="n">1,586</td>
+    </tr><tr><td>03/10 04:15</td>
+      <td class="n">1,125</td><td class="n">1,094</td>
+    </tr><tr><td>03/10 04:45</td>
+      <td class="n">1,475</td><td class="n">1,386</td>
+    </tr><tr><td>03/10 05:15</td>
+      <td class="n">1,407</td><td class="n">1,262</td>
+    </tr><tr><td>03/10 05:45</td>
+      <td class="n">908</td><td class="n">731</td>
+    </tr><tr><td>03/10 06:15</td>
+      <td class="n">1,092</td><td class="n">1,086</td>
+    </tr><tr><td>03/10 06:45</td>
+      <td class="n">1,143</td><td class="n">1,039</td>
+    </tr><tr><td>03/10 07:15</td>
+      <td class="n">1,141</td><td class="n">1,154</td>
+    </tr><tr><td>03/10 07:45</td>
+      <td class="n">1,141</td><td class="n">1,029</td>
+    </tr><tr><td>03/10 08:15</td>
+      <td class="n">1,546</td><td class="n">1,353</td>
+    </tr><tr><td>03/10 08:45</td>
+      <td class="n">1,440</td><td class="n">1,230</td>
+    </tr><tr><td>03/10 09:15</td>
+      <td class="n">2,166</td><td class="n">2,045</td>
+    </tr><tr><td>03/10 09:45</td>
+      <td class="n">1,968</td><td class="n">1,686</td>
+    </tr><tr><td>03/10 10:15</td>
+      <td class="n">1,493</td><td class="n">1,538</td>
+    </tr><tr><td>03/10 10:45</td>
+      <td class="n">1,090</td><td class="n">1,063</td>
+    </tr><tr><td>03/10 11:15</td>
+      <td class="n">2,043</td><td class="n">1,895</td>
+    </tr><tr><td>03/10 11:45</td>
+      <td class="n">1,595</td><td class="n">1,567</td>
+    </tr><tr><td>03/10 12:15</td>
+      <td class="n">1,376</td><td class="n">1,328</td>
+    </tr><tr><td>03/10 12:45</td>
+      <td class="n">2,227</td><td class="n">2,066</td>
+    </tr><tr><td>03/10 13:15</td>
+      <td class="n">2,170</td><td class="n">1,938</td>
+    </tr><tr><td>03/10 13:45</td>
+      <td class="n">1,824</td><td class="n">1,629</td>
+    </tr><tr><td>03/10 14:15</td>
+      <td class="n">2,265</td><td class="n">2,291</td>
+    </tr><tr><td>03/10 14:45</td>
+      <td class="n">2,800</td><td class="n">2,789</td>
+    </tr><tr><td>03/10 15:15</td>
+      <td class="n">1,614</td><td class="n">1,614</td>
+    </tr><tr><td>03/10 15:45</td>
+      <td class="n">3,888</td><td class="n">4,032</td>
+    </tr><tr><td>03/10 16:15</td>
+      <td class="n">7,200</td><td class="n">6,570</td>
+    </tr><tr><td>03/10 16:45</td>
+      <td class="n">4,383</td><td class="n">4,608</td>
+    </tr><tr><td>03/10 17:15</td>
+      <td class="n">2,530</td><td class="n">2,263</td>
+    </tr><tr><td>03/10 17:45</td>
+      <td class="n">3,994</td><td class="n">3,800</td>
+    </tr><tr><td>03/10 18:15</td>
+      <td class="n">3,161</td><td class="n">2,930</td>
+    </tr><tr><td>03/10 18:45</td>
+      <td class="n">3,035</td><td class="n">2,749</td>
+    </tr><tr><td>03/10 19:15</td>
+      <td class="n">3,736</td><td class="n">3,478</td>
+    </tr><tr><td>03/10 19:45</td>
+      <td class="n">2,847</td><td class="n">2,911</td>
+    </tr></tbody></table></details>
+
+  <p class="note">
+    <b>Cách đo.</b> Hashtag này chạy quá nhanh để kéo hết 24 giờ (ước 80k bài, tốn khoảng $12 tiền API).
+    Thay vào đó mỗi 30 phút lấy một lát cắt hẹp và đếm <b>hết</b> số bài trong lát đó — độ rộng lát là do mình chọn nên biết chính xác,
+    nên sai số chỉ còn sai số đếm (±2% trên toàn bộ 4,036 bài mẫu).
+    Dấu <code>&gt;</code> đánh dấu lát cắt vẫn tràn trang — con số đó là <i>chặn dưới</i>, thực tế cao hơn.
+    Con số ±2% chỉ là sai số <i>đếm</i>; nó chưa tính giả định rằng tốc độ đo ở đầu mỗi lát giữ nguyên suốt 30 phút —
+    giả định đó lệch nhiều nhất ở một hai giờ dốc ngay sau đỉnh, nên tổng thực có thể chênh hơn ±2%.
+    Không có lát nào bị tràn.
+    <br><b>Lưu ý về tương tác.</b> Bài đăng lúc 20h tối qua đã có 24 giờ để tích lượt thích, bài đăng lúc 19h hôm nay mới có 1 giờ —
+    nên con số tương tác trung bình nghiêng về phía thấp.
+  </p>
+</div>
+
+<div id="tip" role="status" aria-live="polite"></div>
+<script id="geo" type="application/json">{"l":58,"t":14,"iw":658,"ih":272,"x0":1790946900000,"x1":1791031500000,"ymax":17920,"series":[{"tag":"LENAMIU PLS LOVE EP4","i":1,"pts":[[1790946900000,4500,1,20],[1790948700000,16000,1,16],[1790950500000,10800,1,18],[1790952300000,7200,1,18],[1790954100000,8296,1,14],[1790955900000,4680,1,20],[1790957700000,7920,1,11],[1790959500000,6300,1,17],[1790961300000,4985,1,17],[1790963100000,3375,1,18],[1790964900000,2625,1,17],[1790966700000,2555,1,15],[1790968500000,2286,1,16],[1790970300000,2485,1,14],[1790972100000,2105,1,16],[1790973900000,1683,1,17],[1790975700000,1125,1,18],[1790977500000,1475,1,13],[1790979300000,1407,1,15],[1790981100000,908,1,19],[1790982900000,1092,1,14],[1790984700000,1143,1,15],[1790986500000,1141,1,15],[1790988300000,1141,1,15],[1790990100000,1546,1,13],[1790991900000,1440,1,15],[1790993700000,2166,1,12],[1790995500000,1968,1,16],[1790997300000,1493,1,17],[1790999100000,1090,1,17],[1791000900000,2043,1,22],[1791002700000,1595,1,17],[1791004500000,1376,1,16],[1791006300000,2227,1,12],[1791008100000,2170,1,15],[1791009900000,1824,1,16],[1791011700000,2265,1,13],[1791013500000,2800,1,13],[1791015300000,1614,1,20],[1791017100000,3888,1,19],[1791018900000,7200,1,21],[1791020700000,4383,1,19],[1791022500000,2530,1,20],[1791024300000,3994,1,12],[1791026100000,3161,1,17],[1791027900000,3035,1,15],[1791029700000,3736,1,13],[1791031500000,2847,1,17]]},{"tag":"#PlsLoveรักได้ไหมEP4","i":2,"pts":[[1790946900000,4320,1,20],[1790948700000,14760,1,16],[1790950500000,10473,1,18],[1790952300000,7200,1,18],[1790954100000,8609,1,13],[1790955900000,4926,1,20],[1790957700000,7527,1,12],[1790959500000,5564,1,17],[1790961300000,4469,1,17],[1790963100000,3600,1,17],[1790964900000,2560,1,18],[1790966700000,2686,1,15],[1790968500000,2100,1,17],[1790970300000,2151,1,15],[1790972100000,1920,1,16],[1790973900000,1586,1,16],[1790975700000,1094,1,18],[1790977500000,1386,1,13],[1790979300000,1262,1,16],[1790981100000,731,1,20],[1790982900000,1086,1,12],[1790984700000,1039,1,15],[1790986500000,1154,1,14],[1790988300000,1029,1,16],[1790990100000,1353,1,13],[1790991900000,1230,1,16],[1790993700000,2045,1,12],[1790995500000,1686,1,16],[1790997300000,1538,1,16],[1790999100000,1063,1,18],[1791000900000,1895,1,22],[1791002700000,1567,1,16],[1791004500000,1328,1,16],[1791006300000,2066,1,12],[1791008100000,1938,1,15],[1791009900000,1629,1,16],[1791011700000,2291,1,13],[1791013500000,2789,1,13],[1791015300000,1614,1,20],[1791017100000,4032,1,19],[1791018900000,6570,1,12],[1791020700000,4608,1,18],[1791022500000,2263,1,21],[1791024300000,3800,1,11],[1791026100000,2930,1,17],[1791027900000,2749,1,15],[1791029700000,3478,1,13],[1791031500000,2911,1,16]]}]}</script>
+<script>
+(function(){
+  var tip=document.getElementById('tip');
+  function place(e){var x=e.clientX+16,y=e.clientY-12;
+    if(x+tip.offsetWidth>innerWidth-8)x=e.clientX-tip.offsetWidth-16;
+    if(y+tip.offsetHeight>innerHeight-8)y=innerHeight-tip.offsetHeight-8;
+    tip.style.left=Math.max(8,x)+'px';tip.style.top=Math.max(8,y)+'px';}
+  function hide(){tip.style.opacity=0;}
+
+  // --- tooltip cho cac mark co data-tip (thanh ngang)
+  document.addEventListener('pointerover',function(e){
+    var el=e.target.closest('[data-tip]');if(!el)return;
+    tip.textContent=el.getAttribute('data-tip');tip.style.opacity=1;place(e);});
+  document.addEventListener('pointermove',function(e){
+    if(tip.style.opacity==='1'&&e.target.closest('[data-tip]'))place(e);});
+  document.addEventListener('pointerout',function(e){
+    if(e.target.closest('[data-tip]'))hide();});
+  document.addEventListener('focusin',function(e){
+    var el=e.target.closest('[data-tip]');if(!el)return;
+    var r=el.getBoundingClientRect();tip.textContent=el.getAttribute('data-tip');
+    tip.style.opacity=1;place({clientX:r.right-120,clientY:r.top});});
+  document.addEventListener('focusout',hide);
+
+  // --- crosshair cho bieu do duong: bat theo X gan nhat, hien MOI series
+  var geo=JSON.parse(document.getElementById('geo').textContent);
+  var svg=document.getElementById('vol'),hit=document.getElementById('hit'),
+      hair=document.getElementById('hair'),hdots=document.getElementById('hdots');
+  if(!svg||!geo)return;
+  var SVGNS='http://www.w3.org/2000/svg';
+  var sx=function(v){return geo.l+(geo.x1===geo.x0?geo.iw/2:(v-geo.x0)/(geo.x1-geo.x0)*geo.iw);};
+  var sy=function(v){return geo.t+geo.ih-v/geo.ymax*geo.ih;};
+  var nf=new Intl.NumberFormat('en-US');
+  function label(ms){var d=new Date(ms+7*3600e3).toISOString();
+    return d.slice(8,10)+'/'+d.slice(5,7)+' '+d.slice(11,16);}
+
+  function move(e){
+    var r=svg.getBoundingClientRect();
+    var vx=(e.clientX-r.left)/r.width*840;
+    var frac=Math.min(1,Math.max(0,(vx-geo.l)/geo.iw));
+    var want=geo.x0+frac*(geo.x1-geo.x0);
+    var pts=geo.series[0].pts,k=0,best=Infinity;
+    for(var i=0;i<pts.length;i++){var d=Math.abs(pts[i][0]-want);if(d<best){best=d;k=i;}}
+    var at=pts[k][0],X=sx(at);
+    hair.setAttribute('x1',X);hair.setAttribute('x2',X);hair.style.display='';
+    while(hdots.firstChild)hdots.removeChild(hdots.firstChild);
+    tip.textContent='';
+    var h=document.createElement('div');h.className='h';h.textContent=label(at);tip.appendChild(h);
+    geo.series.forEach(function(s){
+      var p=s.pts[k];if(!p)return;
+      var c=document.createElementNS(SVGNS,'circle');
+      c.setAttribute('cx',X);c.setAttribute('cy',sy(p[1]));c.setAttribute('r',4);
+      c.setAttribute('class','dot');c.setAttribute('fill','var(--series-'+s.i+')');
+      hdots.appendChild(c);
+      var row=document.createElement('div');row.className='r';
+      var key=document.createElement('i');key.className='k';
+      key.style.background='var(--series-'+s.i+')';row.appendChild(key);
+      var v=document.createElement('span');v.className='v';
+      v.textContent=(p[2]?'':'>')+nf.format(p[1])+' bài/giờ';row.appendChild(v);
+      var n=document.createElement('span');n.className='n';n.textContent=s.tag;row.appendChild(n);
+      tip.appendChild(row);
+    });
+    tip.style.opacity=1;place(e);
+  }
+  hit.addEventListener('pointermove',move);
+  hit.addEventListener('pointerenter',move);
+  hit.addEventListener('pointerleave',function(){hair.style.display='none';
+    while(hdots.firstChild)hdots.removeChild(hdots.firstChild);hide();});
+
+  document.getElementById('themeBtn').addEventListener('click',function(){
+    var r=document.documentElement;
+    var cur=r.dataset.theme||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+    r.dataset.theme=cur==='dark'?'light':'dark';});
+})();
+</script>
+</div></body></html>
