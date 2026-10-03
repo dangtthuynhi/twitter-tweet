@@ -147,6 +147,28 @@
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  /**
+   * Doi den khi dieu kien dung, kiem lai moi `step` ms. Tra ve co dung kip hay
+   * khong, khong nem loi.
+   *
+   * DraftJS doi DOM sau mot vong render cua React, khong doi ngay trong lenh.
+   * Ngu mot khoang CO DINH la danh cuoc vao toc do may: may khoe thi phi thoi
+   * gian, may yeu (hoac tab bi dim, hoac mang dang ket) thi cat luon thao tac
+   * giua chung roi ket luan nham la "khong xoa duoc". Doi co dieu kien thi may
+   * nao cung dung: xong som di som, xong muon van kip.
+   */
+  async function until(fn, timeout = 4000, step = 120) {
+    const deadline = Date.now() + timeout;
+    for (;;) {
+      try { if (fn()) return true; } catch { /* DOM dang thay, thu lai */ }
+      if (Date.now() >= deadline) return false;
+      await sleep(step);
+    }
+  }
+
+  /** O soan thao da sach chua. */
+  const isEmpty = (el) => !el || !el.isConnected || !el.textContent.trim();
+
   /** Cho mot element xuat hien. Nem loi neu qua han. */
   function waitFor(selector, timeout = 15000, root = document) {
     return new Promise((resolve, reject) => {
@@ -196,21 +218,21 @@
    * X co the con giu ban nhap cu; xoa hut ma cu go tiep thi chu moi dinh vao
    * duoi chu cu, thanh mot bai gop nhieu bai.
    */
-  async function clearComposer(el) {
-    for (let i = 0; i < 3; i++) {
-      if (!el.textContent.trim()) return;
+  async function clearComposer(el, settle = 3000) {
+    for (let i = 0; i < 4; i++) {
+      if (isEmpty(el)) return;
+
       selectAllIn(el);
-      await sleep(120);
+      await sleep(200);              // cho bay focus cua modal yen vi da
       document.execCommand('delete', false, null);
-      await sleep(120);
-      if (!el.textContent.trim()) return;
+      if (await until(() => isEmpty(el), settle)) return;
 
       // delete khong an thi thu de len bang mot chuoi rong — cung mot duong
       // nhap lieu ma DraftJS dang lang nghe, nhung di qua nhanh khac.
       selectAllIn(el);
-      document.execCommand('insertText', false, '');
       await sleep(200);
-      if (!el.textContent.trim()) return;
+      document.execCommand('insertText', false, '');
+      if (await until(() => isEmpty(el), settle)) return;
     }
     throw new Error('Khong xoa duoc chu cu trong o soan thao');
   }
@@ -222,12 +244,16 @@
    * confirmationSheetConfirm/Cancel ma vai tro tung doi cho nhau, doan nham mot
    * lan la luu draft thay vi vut di — dung cai ta dang muon tranh.
    */
-  async function answerSaveSheet(choice = 'discard') {
+  async function answerSaveSheet(choice = 'discard', wait = 2500) {
     // Chi nhan sheet xac nhan. Lay bua mot [role="dialog"] nao do la co luc
     // vo phai chinh modal soan thao va bam nham nut trong do.
-    const sheet = document.querySelector('[data-testid="confirmationSheetDialog"]') ||
+    const find = () => document.querySelector('[data-testid="confirmationSheetDialog"]') ||
       [...document.querySelectorAll('[role="dialog"]')]
         .find((d) => !d.querySelector('[data-testid="tweetTextarea_0"]'));
+    // Sheet nay hien sau mot nhip animation. Nhin mot phat roi bo di thi tren
+    // may cham se khong thay gi, va X lang le luu draft.
+    await until(() => find(), wait);
+    const sheet = find();
     if (!sheet) return false;
     const want = choice === 'discard'
       ? /discard|delete|don't save|khong luu|huy|xoa/i
@@ -240,7 +266,8 @@
     const target = btn || fallback;
     if (!target) return false;
     target.click();
-    await sleep(500);
+    await until(() => !target.isConnected, 2500);
+    await sleep(300);
     return true;
   }
 
@@ -253,7 +280,11 @@
    */
   async function discardDraft() {
     const close = document.querySelector('[data-testid="app-bar-close"]');
-    if (close) { close.click(); await sleep(600); }
+    if (close) {
+      close.click();
+      await until(() => !close.isConnected, 2500);
+      await sleep(300);
+    }
     await answerSaveSheet('discard');
   }
 
@@ -270,9 +301,7 @@
     // Xoa tai cho khong an -> vut han ban nhap. Chi can con mot chu la lan mo
     // composer ke tiep lai thua ke dung dong rac nay.
     await discardDraft();
-    await sleep(400);
-    const after = document.querySelector('[data-testid="tweetTextarea_0"]');
-    return !after || !after.textContent.trim();
+    return until(() => isEmpty(document.querySelector('[data-testid="tweetTextarea_0"]')), 3000);
   }
 
   async function typeInto(el, text) {
@@ -285,17 +314,22 @@
     for (let i = 0; i < lines.length; i++) {
       if (i > 0) {
         document.execCommand('insertLineBreak', false, null);
-        await sleep(60);
+        await sleep(120);
       }
       if (lines[i]) {
         document.execCommand('insertText', false, lines[i]);
-        await sleep(60);
+        await sleep(120);
       }
     }
 
-    await sleep(400);
-    const typed = el.textContent.replace(/\s+/g, ' ').trim();
     const want = text.replace(/\s+/g, ' ').trim();
+    const seen = () => el.textContent.replace(/\s+/g, ' ').trim();
+    // Doi chu hien du roi hay phan xu. Cham khong phai la sai — ket luan som
+    // tren may yeu la bo oan mot bai dung, roi di thang vao nhanh tai lai trang.
+    await until(() => seen().startsWith(want.slice(0, 30)), 6000);
+    await sleep(400);              // cho not may ky tu cuoi kip hien
+
+    const typed = seen();
     if (!typed) throw new Error('Go chu vao o soan thao that bai');
     // Go dung thi o soan thao phai BAT DAU bang chu vua go. Neu con sot chu cu
     // thi no bat dau bang chu cu -> bo bai nay, dung de dang ra bai dinh chum.
@@ -353,7 +387,12 @@
     if (!btn) throw new Error('Khong thay nut dang trong o soan thao');
 
     await clickWhenEnabled(btn, 10000);
-    await sleep(3000);
+
+    // Doi X dang XONG HAN roi hay di tiep: o soan thao sach lai, hoac modal
+    // bien mat. Di tiep som khi chu con nam do thi closeComposer se dong vao
+    // mot o con chu — X bat sheet "Save post?" va bai do thanh draft.
+    await until(() => isEmpty(box), 12000);
+    await sleep(1200);
   }
 
   async function doRetweet() {
@@ -462,8 +501,8 @@
     // Khi modal mo ra thi co HAI o cung ten "tweetTextarea_0" — phai bam vao
     // dung o trong modal, neu khong chu se go vao o inline nam khuat phia sau.
     try {
-      const dialog = await waitFor('[role="dialog"]', 6000);
-      await waitFor('[data-testid="tweetTextarea_0"]', 6000, dialog);
+      const dialog = await waitFor('[role="dialog"]', 12000);
+      await waitFor('[data-testid="tweetTextarea_0"]', 12000, dialog);
       return dialog;
     } catch {
       return null;
@@ -473,10 +512,16 @@
   /** Dong o soan thao dang modal sau khi dang xong. */
   async function closeComposer() {
     const close = document.querySelector('[data-testid="app-bar-close"]');
-    if (close) { close.click(); await sleep(600); }
+    if (close) {
+      close.click();
+      await until(() => !close.isConnected, 2500);
+      await sleep(300);
+    }
     // Con chu sot lai thi X bat sheet "Save post?". Khong tra loi thi X mac
     // dinh LUU, va chinh cai draft do se do nguoc vao o soan thao o bai sau.
-    await answerSaveSheet('discard');
+    // Cho ngan thoi: duong nay la duong dang THANH CONG, o soan thao da sach
+    // nen phan lon lan se khong co sheet nao hien — doi lau chi la phi.
+    await answerSaveSheet('discard', 1200);
   }
 
   /** Chu dang hien tren hop thoai chan ngang, de con biet X dang noi gi. */
@@ -731,13 +776,25 @@
         save(state);
         render();
       } else {
-        // Hop thoai cua X (canh bao trung bai, thu thach xac minh...) khong tu
-        // mat. Tai lai trang la cach chac chan nhat de co lai DOM sach, thay vi
-        // do bam dung nut dong.
         scheduleNext();
-        addLog('Tai lai trang cho sach roi chay tiep.', 'warn');
-        await clearComposerIfAny();   // khong thi dinh canh bao "unsaved changes"
-        location.reload();
+
+        // Hop thoai cua X (canh bao trung bai, thu thach xac minh...) khong tu
+        // mat, va ban nhap sot lai se dinh vao dau bai sau. Tai lai trang la
+        // cach chac chan nhat de co lai DOM sach — nhung no dat: mat ca chuc
+        // giay nap lai, va tren may cham thi chinh luc nap lai do lai de de ra
+        // loi tiep. Nen thu don TAI CHO truoc, chi tai lai khi don khong sach.
+        await dismissOverlays();
+        const clean = await clearComposerIfAny();
+        const blocked = document.querySelector('[role="dialog"], [role="alert"]');
+        if (clean && !blocked) {
+          addLog('Da don tai cho, chay tiep khong can tai lai trang.', 'warn');
+          save(state);
+          render();
+        } else {
+          addLog('Don tai cho khong sach, tai lai trang roi chay tiep.', 'warn');
+          save(state);
+          location.reload();
+        }
       }
     } finally {
       busy = false;
@@ -1180,7 +1237,11 @@
   }
 
   async function boot() {
-    await sleep(1200);           // cho X dung xong khung trang
+    // Cho X dung xong khung trang. Doi theo DAU HIEU chu khong theo dong ho:
+    // may cham hoac mang ket thi 1-2 giay chua chac da co gi tren man hinh.
+    await until(() => document.querySelector('[data-testid="SideNav_NewTweet_Button"], '
+      + '[data-testid="tweetTextarea_0"], [data-testid="primaryColumn"]'), 15000, 300);
+    await sleep(800);
     await loadDefaultContent();  // load default content
     buildPanel();
     render();
