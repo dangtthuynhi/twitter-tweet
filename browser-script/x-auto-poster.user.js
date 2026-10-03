@@ -229,6 +229,39 @@
    * X co the con giu ban nhap cu; xoa hut ma cu go tiep thi chu moi dinh vao
    * duoi chu cu, thanh mot bai gop nhieu bai.
    */
+  /**
+   * Sach VA GIU sach.
+   *
+   * Doc duoc mot nhip rong chua chac la xong: `delete` chi don DOM, con
+   * editorState ben trong DraftJS van giu chu cu, va vong render ke tiep cua
+   * React do nguyen chu cu tro lai. Nhin mot phat roi di tiep thi vua dung
+   * luc o dang rong — go vao, chu cu quay ve, va thanh mot bai gop hai bai.
+   */
+  async function staysEmpty(el, settle = 3000, hold = 800) {
+    if (!(await until(() => isEmpty(el), settle))) return false;
+    await sleep(hold);
+    return isEmpty(el);
+  }
+
+  /**
+   * De `text` len TOAN BO noi dung dang co, trong mot thao tac duy nhat.
+   *
+   * Boi den het roi insertText thi DraftJS thay dung mot lenh thay the, khong
+   * con khe ho giua "xoa" va "go" de chu cu kip quay ve. Kiem lai bang so sanh
+   * BANG NHAU chu khong phai "bat dau bang" — con sot mot chu cu la biet ngay.
+   */
+  async function replaceAllIn(el, text, settle = 4000) {
+    const want = text.replace(/\s+/g, ' ').trim();
+    const seen = () => el.textContent.replace(/\s+/g, ' ').trim();
+    for (let i = 0; i < 4; i++) {
+      selectAllIn(el);
+      await sleep(250);              // cho DraftJS kip nhan vung boi den moi
+      document.execCommand('insertText', false, text);
+      if (await until(() => seen() === want, settle)) return true;
+    }
+    return false;
+  }
+
   async function clearComposer(el, settle = 3000) {
     for (let i = 0; i < 4; i++) {
       if (isEmpty(el)) return;
@@ -236,14 +269,16 @@
       selectAllIn(el);
       await sleep(200);              // cho bay focus cua modal yen vi da
       document.execCommand('delete', false, null);
-      if (await until(() => isEmpty(el), settle)) return;
+      if (await staysEmpty(el, settle)) return;
 
-      // delete khong an thi thu de len bang mot chuoi rong — cung mot duong
-      // nhap lieu ma DraftJS dang lang nghe, nhung di qua nhanh khac.
+      // Chu quay lai nghia la editorState cua DraftJS chua he doi. Ep no ve
+      // dung mot ky tu bang insertText truoc — sau mot lenh thay the thi trang
+      // thai trong cua DraftJS khop voi DOM, luc do delete moi an.
+      await replaceAllIn(el, '.', settle);
       selectAllIn(el);
       await sleep(200);
-      document.execCommand('insertText', false, '');
-      if (await until(() => isEmpty(el), settle)) return;
+      document.execCommand('delete', false, null);
+      if (await staysEmpty(el, settle)) return;
     }
     throw new Error('Khong xoa duoc chu cu trong o soan thao');
   }
@@ -315,18 +350,35 @@
     return until(() => isEmpty(document.querySelector('[data-testid="tweetTextarea_0"]')), 3000);
   }
 
+  /**
+   * Go `text` vao o soan thao, DE DE LEN chu dang co san.
+   *
+   * Truoc day la xoa truoc roi go sau. Giua hai buoc do co mot khe ho: o doc
+   * ra rong mot nhip, ta tuong da sach va go tiep, roi DraftJS do chu cu tro
+   * lai tu editorState — chu moi dinh duoi chu cu, thanh bai gop hai bai.
+   * Thay the trong MOT lenh thi khong con khe ho nao.
+   */
   async function typeInto(el, text) {
-    await clearComposer(el);
+    const lines = text.split('\n');
+
+    if (!isEmpty(el)) addLog('O soan thao con chu cu, de de len.', 'warn');
+
+    // Dong dau tien vua la "xoa" vua la "go". Bai luon bat dau bang content
+    // nen lines[0] khong rong; neu co thi don sach theo duong thuong.
+    if (lines[0]) {
+      if (!(await replaceAllIn(el, lines[0]))) {
+        throw new Error('Khong xoa duoc chu cu trong o soan thao');
+      }
+    } else {
+      await clearComposer(el);
+    }
 
     // DraftJS khong hieu ky tu "\n" trong insertText — no se bi nuot hoac
     // bien thanh khoang trang. Phai chen tung dong, giua cac dong dung
     // insertLineBreak (tuong duong nguoi dung bam Enter trong o soan thao).
-    const lines = text.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      if (i > 0) {
-        document.execCommand('insertLineBreak', false, null);
-        await sleep(120);
-      }
+    for (let i = 1; i < lines.length; i++) {
+      document.execCommand('insertLineBreak', false, null);
+      await sleep(120);
       if (lines[i]) {
         document.execCommand('insertText', false, lines[i]);
         await sleep(120);
@@ -346,6 +398,12 @@
     // thi no bat dau bang chu cu -> bo bai nay, dung de dang ra bai dinh chum.
     if (!typed.startsWith(want.slice(0, 30))) {
       throw new Error('O soan thao con chu cu, bo qua bai nay');
+    }
+    // Chu cu sot lai o CUOI thi startsWith van lot, va bai dang ra la hai bai
+    // gop. Khong so khop tung ky tu (X render hashtag/emoji co the lech vai ky
+    // tu), chi chan truong hop dai vuot han ra.
+    if (typed.length > want.length + 40) {
+      throw new Error('O soan thao con chu thua, bo qua bai nay');
     }
   }
 
