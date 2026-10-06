@@ -6,6 +6,24 @@ import { log } from './logger.js';
 const COST_PER_TWEET = 0.00015;
 const PAGE = 20;
 
+/**
+ * Chon vi tri lay mau NGAU NHIEN trong mot doan, thay vi luon do tu dau doan.
+ *
+ * Do tu dau doan nghe co ve vo hai, nhung bai dang khong rai deu: chung don lai
+ * o cac moc tron (dau phut, dau nua gio). Do dung tai dau moi lat 30 phut nen
+ * lan nao cung roi trung dot don do, va suy ra ty le cao gap ruoi so that:
+ *
+ *   do tai +0s          -> 10.457 bai/gio
+ *   trung binh 8 vi tri ->  6.579 bai/gio
+ *   dem tron 10 phut    ->  6.276 bai/gio  (so that)
+ *
+ * Rai ngau nhien thi ky vong cua uoc luong bang dung ty le that, khong con lech
+ * mot phia nua — phan sai so con lai la nhieu, va nhieu thi triet tieu dan khi
+ * cong 48 lat lai.
+ */
+const pickOffset = (segStart, segDur, win) =>
+  segStart + Math.floor(Math.random() * Math.max(1, segDur - win));
+
 const OUT_DIR = path.resolve(process.cwd(), 'data/trend');
 const slug = (q) => q.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').slice(0, 60);
 
@@ -57,7 +75,7 @@ async function countWindow(query, t0, win, maxPages) {
  *
  * Chi phi: 24 lat x ~`target` bai = ~$0.09/tag thay vi $20.
  */
-export async function sampleWindow(query, { from, to, slices = 24, target = 45, maxPages = 4 } = {}) {
+export async function sampleWindow(query, { from, to, slices = 48, target = 48, maxPages = 4, probes = 2 } = {}) {
   const sliceDur = Math.floor((to - from) / slices);
   const out = [];
   const tweets = new Map();
@@ -65,35 +83,43 @@ export async function sampleWindow(query, { from, to, slices = 24, target = 45, 
   let spent = 0;
 
   for (let i = 0; i < slices; i++) {
-    const t0 = from + i * sliceDur;
+    const sliceStart = from + i * sliceDur;
+    const seg = Math.floor(sliceDur / probes);
+    const per = Math.max(1, Math.round(target / probes));
 
-    // Chon do rong sao cho ky vong ~target bai. Chan duoi 5s vi createdAt chi
-    // co do phan giai giay; chan tren la ca lat (khong lan sang lat ke ben).
-    let win = Math.max(5, Math.min(sliceDur, Math.round((target / rate) * 3600)));
+    const got = [];
+    let totN = 0, weighted = 0, allExact = true;
 
-    let { tweets: got, exact } = await countWindow(query, t0, win, maxPages);
-    spent += Math.max(got.length, 1) * COST_PER_TWEET;
+    for (let k = 0; k < probes; k++) {
+      let win = Math.max(5, Math.min(seg, Math.round((per / rate) * 3600)));
+      let r = await countWindow(query, pickOffset(sliceStart + k * seg, seg, win), win, maxPages);
+      spent += Math.max(r.tweets.length, 1) * COST_PER_TWEET;
 
-    // Doan hut -> cua so qua rong. Thu lai hep hon DUNG MOT LAN: moi lan thu
-    // deu mat tien, va mot uoc luong tu 80 bai van tot hon ba lan thu.
-    if (!exact && win > 5) {
-      win = Math.max(5, Math.round(win / 4));
-      ({ tweets: got, exact } = await countWindow(query, t0, win, maxPages));
-      spent += Math.max(got.length, 1) * COST_PER_TWEET;
+      // Doan hut -> cua so qua rong. Thu lai hep hon DUNG MOT LAN: moi lan thu
+      // deu mat tien, va mot uoc luong tu 80 bai van tot hon ba lan thu.
+      if (!r.exact && win > 5) {
+        win = Math.max(5, Math.round(win / 4));
+        r = await countWindow(query, pickOffset(sliceStart + k * seg, seg, win), win, maxPages);
+        spent += Math.max(r.tweets.length, 1) * COST_PER_TWEET;
+      }
+
+      let rk;
+      if (r.exact) {
+        rk = (r.tweets.length / win) * 3600;
+      } else {
+        // Van tran: quay ve mat do thoi gian cua chinh mau (chan duoi, kem tin hon)
+        allExact = false;
+        const ts = r.tweets.map((t) => Date.parse(t.createdAt)).filter(Number.isFinite).sort((a, b) => b - a);
+        const span = ts.length > 1 ? (ts[0] - ts.at(-1)) / 1000 : win;
+        rk = (r.tweets.length / Math.max(span, 1)) * 3600;
+      }
+      totN += r.tweets.length;
+      weighted += rk * r.tweets.length;     // trung binh co trong so theo so bai
+      got.push(...r.tweets);
     }
 
-    let ratePerHour;
-    let marginPct = null;
-    if (exact) {
-      ratePerHour = Math.round((got.length / win) * 3600);
-      marginPct = got.length ? Math.round((100 / Math.sqrt(got.length))) : null;
-    } else {
-      // Van tran: quay ve mat do thoi gian cua chinh mau (chan duoi, kem tin hon)
-      const ts = got.map((t) => Date.parse(t.createdAt)).filter(Number.isFinite).sort((a, b) => b - a);
-      const span = ts.length > 1 ? (ts[0] - ts.at(-1)) / 1000 : win;
-      ratePerHour = Math.round((got.length / Math.max(span, 1)) * 3600);
-      marginPct = Math.round(100 / Math.sqrt(got.length || 1));
-    }
+    const ratePerHour = totN ? Math.round(weighted / totN) : 0;
+    const marginPct = totN ? Math.round(100 / Math.sqrt(totN)) : null;
     if (ratePerHour > 0) rate = ratePerHour;
 
     for (const t of got) {
@@ -119,13 +145,13 @@ export async function sampleWindow(query, { from, to, slices = 24, target = 45, 
     }
 
     const nRT = got.filter(RT).length;
-    out.push({ t0, win, n: got.length, nRT, exact, ratePerHour, marginPct,
+    out.push({ t0: sliceStart, n: got.length, nRT, exact: allExact, ratePerHour, marginPct,
                rtSharePct: got.length ? Math.round((nRT / got.length) * 100) : null });
     log.info(
-      `  ${new Date(t0 * 1000).toISOString().slice(5, 16).replace('T', ' ')} UTC  ` +
-      `${String(got.length).padStart(3)} bai / ${String(win).padStart(4)}s  ` +
-      `-> ${exact ? '' : '>'}${ratePerHour.toLocaleString('en-US').padStart(7)} bai/gio` +
-      `${marginPct ? ` +/-${marginPct}%` : ''} (RT ${nRT}/${got.length})${exact ? '' : '  TRAN'}`
+      `  ${new Date(sliceStart * 1000).toISOString().slice(5, 16).replace('T', ' ')} UTC  ` +
+      `${String(got.length).padStart(3)} bai / ${probes} vi tri  ` +
+      `-> ${allExact ? '' : '>'}${ratePerHour.toLocaleString('en-US').padStart(7)} bai/gio` +
+      `${marginPct ? ` +/-${marginPct}%` : ''} (RT ${nRT}/${got.length})${allExact ? '' : '  TRAN'}`
     );
   }
 

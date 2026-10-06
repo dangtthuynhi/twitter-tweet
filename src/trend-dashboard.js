@@ -40,7 +40,7 @@ const dhm = (ms) => {
 
 const DAY = 86400e3;
 
-function analyze(tag, rec, collectedAt) {
+function analyze(tag, rec, collectedAt, cal = 1) {
   const { slices, top, sliceDur } = rec;
   const all = rec.tweets;
 
@@ -57,13 +57,13 @@ function analyze(tag, rec, collectedAt) {
   // minh chon nen biet chinh xac — sai so con lai chi la sai so dem.
   const points = slices.map((s) => ({
     at: (s.t0 + sliceDur / 2) * 1000,
-    rate: s.ratePerHour,
+    rate: Math.round(s.ratePerHour * cal),
     exact: s.exact,
     n: s.n,
     margin: s.marginPct,
     rtShare: s.rtSharePct ?? 0,
   }));
-  const estimatedTotal = rec.estimatedTotal ?? points.reduce((a, p) => a + (p.rate * sliceDur) / 3600, 0);
+  const estimatedTotal = (rec.estimatedTotal ?? points.reduce((a, p) => a + (p.rate * sliceDur) / 3600, 0)) * cal;
 
   // Sai so tong hop: cac lat doc lap nhau nen phuong sai cong lai duoc.
   const totalSampled = slices.reduce((a, s) => a + s.n, 0);
@@ -115,7 +115,7 @@ function analyze(tag, rec, collectedAt) {
     tag, points, estimatedTotal, marginPct, sample, sampleAll, sliceDur,
     rtShare, estRetweets: estimatedTotal * rtShare, estOriginals: estimatedTotal * (1 - rtShare),
     peak, low, authors: ranked, uniqueAuthors: authors.size,
-    postsPerAuthor: authors.size ? sample / authors.size : 0,
+    postsPerAuthor: authors.size ? sampleAll / authors.size : 0,
     top10Share, langRows, fresh, replies, withMedia, onceOnly,
     likeP90: qt(likeDist, 0.9), likeP99: qt(likeDist, 0.99),
     medFollowers: qt(followerDist, 0.5),
@@ -219,9 +219,13 @@ function hbars(rows, { fmtVal = fmt, series = 1, nameW = 160 } = {}) {
 
 /* ---------------------------------------------------------------- trang */
 
-export function buildTrendDashboard(dataFile, { out = 'dashboard-trend.html', title = 'Phân tích hashtag' } = {}) {
+export function buildTrendDashboard(dataFile, { out = 'dashboard-trend.html', title = 'Phân tích hashtag', compare = null, calibrate = null } = {}) {
   const raw = JSON.parse(fs.readFileSync(path.resolve(dataFile), 'utf8'));
-  const tags = Object.entries(raw.tags).map(([tag, rec]) => analyze(tag, rec, raw.collectedAt));
+  const cmp = Array.isArray(compare) ? { rows: compare } : (compare || {});
+  const cmpRows = (cmp.rows || []).filter((c) => !c.hidden);
+
+  const cal = calibrate?.factor || 1;
+  const tags = Object.entries(raw.tags).map(([tag, rec]) => analyze(tag, rec, raw.collectedAt, cal));
   const { svg, geo } = volumeChart(tags);
 
   const main = tags[0];
@@ -244,10 +248,13 @@ export function buildTrendDashboard(dataFile, { out = 'dashboard-trend.html', ti
   const hours = (raw.to - raw.from) / 3600;
 
   const tiles = [
-    { lab: 'Tổng bài trong 24h', val: short(scale), sub: `±${main.marginPct}% · đã tính cả retweet`, hero: true },
+    calibrate
+      ? { lab: 'Tổng bài trong 24h', val: short(scale),
+          sub: `đã hiệu chỉnh ×${cal.toFixed(2)} — search chỉ thấy ${Math.round(100 / cal)}%`, hero: true }
+      : { lab: 'Tổng bài trong 24h', val: short(scale), sub: `đã tính cả retweet · sai số thực tế quanh ±10%`, hero: true },
+    ...(calibrate ? [{ lab: 'Search đo được', val: short(scale / cal), sub: `chặn dưới — mốc: ${calibrate.source || ''}` }] : []),
     { lab: 'Retweet', val: pct(main.rtShare * 100, 100), sub: `${short(main.estRetweets)} lượt — còn lại ${short(main.estOriginals)} bài gốc` },
-    { lab: 'Đỉnh', val: short(main.peak?.rate) + '/giờ', sub: `lúc ${dhm(main.peak?.at)}` },
-    { lab: 'Trung bình', val: short(scale / hours) + '/giờ', sub: `suốt ${hours} giờ` },
+    { lab: 'Đỉnh', val: short(main.peak?.rate) + '/giờ', sub: `lúc ${dhm(main.peak?.at)} · TB ${short(scale / hours)}/giờ` },
     { lab: 'Tài khoản khác nhau', val: fmt(main.uniqueAuthors), sub: `trong ${fmt(main.sampleAll)} bài lấy mẫu` },
   ];
 
@@ -368,12 +375,24 @@ ${SERIES.map((s, i) => `    --series-${i + 1}:${s.dark};`).join('\n')}
   <div class="tile${t.hero ? ' hero' : ''}"><div class="lab">${esc(t.lab)}</div>
     <div class="val">${esc(t.val)}</div><div class="s">${esc(t.sub)}</div></div>`).join('')}</div>
 
+${cmpRows.length ? `
+<div class="card">
+  <h2>${esc(cmp.title || 'Đối chiếu với con số bạn thấy ở nơi khác')}</h2>
+  <p class="cap">${esc(cmp.caption || 'Cùng một trend có thể ra nhiều con số rất khác nhau tuỳ vào đếm cái gì. Bảng này liệt kê từng cách đếm và con số nó cho ra, để biết con số nào so được với con số nào.')}</p>
+  <table><thead><tr><th>${esc(cmp.columns?.label || 'Cách đếm')}</th><th class="n">${esc(cmp.columns?.value || 'Ra bao nhiêu')}</th><th>${esc(cmp.columns?.note || 'Ghi chú')}</th></tr></thead>
+  <tbody>${cmpRows.map((c) => `<tr>
+    <td${c.highlight ? ' style="font-weight:600"' : ''}>${esc(c.label)}</td>
+    <td class="n"${c.highlight ? ' style="font-weight:600"' : ''}>${esc(typeof c.value === 'number' ? fmt(c.value) : c.value)}</td>
+    <td class="tw">${esc(c.note || '')}</td></tr>`).join('')}</tbody></table>
+</div>` : ''}
+
 <div class="card">
   <h2>Nhịp đăng theo thời gian</h2>
-  <p class="cap">Số bài mỗi giờ <b>tính cả retweet</b>, đo bằng cách đếm chính xác một lát cắt hẹp mỗi 30 phút rồi suy ra tốc độ. Chấm tròn là đỉnh của từng hashtag. Di chuột để xem cả hai mốc cùng lúc.</p>
+  <p class="cap">Số bài mỗi giờ <b>tính cả retweet</b>. Mỗi 30 phút đo hai cửa sổ hẹp ở vị trí ngẫu nhiên và đếm trọn số bài trong đó, rồi suy ra tốc độ. Chấm tròn là đỉnh của từng hashtag. Di chuột để xem cả hai mốc cùng lúc.</p>
   ${svg}
   <div class="legend">${tags.map((t, i) => `<span><i style="background:var(--series-${i + 1})"></i>${esc(display(t.tag))}</span>`).join('')}</div>
-  <p class="note">Hai hashtag xuất hiện cùng nhau trong hầu hết bài đăng, nên hai đường gần như trùng — đó là <b>cùng một tập tweet</b>, không phải hai làn sóng độc lập. Cộng hai con số lại là đếm hai lần.</p>
+  <p class="note">Hai hashtag xuất hiện cùng nhau trong hầu hết bài đăng, nên hai đường gần như trùng — đó là <b>cùng một tập tweet</b>, không phải hai làn sóng độc lập. Cộng hai con số lại là đếm hai lần.
+  <br>Riêng <b>vùng đỉnh thì đừng đọc từng điểm một</b>. Ở đó cửa sổ đo chỉ còn vài giây, mà retweet lại đổ thành từng cụm — một bài được retweet 50 lần trong 3 giây sẽ thổi phồng đúng điểm rơi vào đó. Vì vậy hai đường vênh nhau tới hai lần ở đỉnh là nhiễu chứ không phải hai hashtag chạy khác nhau. Tổng 24 giờ thì ổn định, vì nó cộng ${main.points.length * 2} cửa sổ độc lập lại — và hai hashtag ra hai con số lệch nhau chưa tới 0,1%.</p>
 </div>
 
 <div class="grid2">
@@ -391,7 +410,8 @@ ${SERIES.map((s, i) => `    --series-${i + 1}:${s.dark};`).join('\n')}
 
 <div class="card">
   <h2>Chân dung hoạt động</h2>
-  <p class="cap">Những chỉ số cho biết trend này do người xem thật hay do cày tag tạo ra. Các chỉ số tương tác chỉ tính trên ${fmt(main.sample)} <b>bài gốc</b> — retweet không có lượt thích của riêng nó.</p>
+  <p class="cap">Những chỉ số cho biết trend này do người xem thật hay do cày tag tạo ra. Các chỉ số tương tác chỉ tính trên ${fmt(main.sample)} <b>bài gốc</b> — retweet không có lượt thích của riêng nó.${calibrate ? `
+  <br><b>Đọc thận trọng:</b> các tỷ lệ dưới đây tính trên phần search <i>nhìn thấy được</i>. Phần ${100 - Math.round(100 / cal)}% bị thiếu nhiều khả năng chính là nhóm bài trùng lặp hàng loạt mà bộ lọc chất lượng của X giấu đi — nên mức độ cày tag thật có thể <b>cao hơn</b> những con số này.` : ''}</p>
   <div class="facts">
     <div class="fact"><b>${main.postsPerAuthor.toFixed(1)}</b><span>bài mỗi tài khoản — ${fmt(main.uniqueAuthors)} tài khoản trong ${fmt(main.sampleAll)} bài mẫu</span></div>
     <div class="fact"><b>${pct(main.onceOnly, main.uniqueAuthors)}</b><span>tài khoản chỉ đăng đúng 1 bài</span></div>
@@ -418,7 +438,7 @@ ${overlap ? `    <div class="fact"><b>${pct(overlap.both, overlap.pool)}</b><spa
   <h2>Số liệu đầy đủ</h2>
   <p class="cap">Cùng dữ liệu với biểu đồ ở trên, dạng bảng.</p>
   <table><thead><tr><th>Hashtag</th><th class="n">Tổng 24h</th><th class="n">Bài gốc</th><th class="n">Retweet</th>
-    <th class="n">Sai số</th><th class="n">Đỉnh/giờ</th><th class="n">Đáy/giờ</th><th class="n">Mẫu</th><th class="n">Tài khoản</th></tr></thead>
+    <th class="n">Sai số đếm</th><th class="n">Đỉnh/giờ</th><th class="n">Đáy/giờ</th><th class="n">Mẫu</th><th class="n">Tài khoản</th></tr></thead>
   <tbody>${tags.map((t, i) => `<tr>
     <td><i class="swatch" style="background:var(--series-${i + 1})"></i>${esc(display(t.tag))}</td>
     <td class="n">${fmt(t.estimatedTotal)}</td><td class="n">${fmt(t.estOriginals)}</td>
@@ -436,12 +456,15 @@ ${overlap ? `    <div class="fact"><b>${pct(overlap.both, overlap.pool)}</b><spa
 
   <p class="note">
     <b>Cách đo.</b> Hashtag này chạy quá nhanh để kéo hết 24 giờ (ước ${short(scale)} bài, tốn khoảng $${(scale * 0.00015).toFixed(0)} tiền API).
-    Thay vào đó mỗi 30 phút lấy một lát cắt hẹp và đếm <b>hết</b> số bài trong lát đó — độ rộng lát là do mình chọn nên biết chính xác,
-    nên sai số chỉ còn sai số đếm (±${main.marginPct}% trên toàn bộ ${fmt(tags.reduce((a, t) => a + t.sample, 0))} bài mẫu).
-    Dấu <code>&gt;</code> đánh dấu lát cắt vẫn tràn trang — con số đó là <i>chặn dưới</i>, thực tế cao hơn.
-    Con số ±${main.marginPct}% chỉ là sai số <i>đếm</i>; nó chưa tính giả định rằng tốc độ đo ở đầu mỗi lát giữ nguyên suốt 30 phút —
-    giả định đó lệch nhiều nhất ở một hai giờ dốc ngay sau đỉnh, nên tổng thực có thể chênh hơn ±${main.marginPct}%.
-    ${main.overflowed ? `Có ${main.overflowed}/${main.points.length} lát như vậy.` : 'Không có lát nào bị tràn.'}
+    Thay vào đó mỗi 30 phút đo <b>hai</b> cửa sổ hẹp ở vị trí <b>ngẫu nhiên</b> trong lát, đếm trọn số bài trong từng cửa sổ rồi suy ra tốc độ.
+    Độ rộng cửa sổ là do mình chọn nên biết chính xác, nên sai số chủ yếu là sai số đếm
+    (±${main.marginPct}% trên toàn bộ ${fmt(tags.reduce((a, t) => a + t.sampleAll, 0))} bài mẫu).
+    ${main.overflowed ? `Có ${main.overflowed}/${main.points.length} lát vẫn tràn trang — đánh dấu <code>&gt;</code>, con số đó là <i>chặn dưới</i>.` : 'Không lát nào bị tràn trang.'}
+    <br><b>Vì sao phải ngẫu nhiên.</b> Bài đăng dồn lại ở các mốc tròn. Đo cố định ngay đầu mỗi lát 30 phút thì lần nào cũng rơi trúng đợt dồn
+    và suy ra tỷ lệ cao gấp rưỡi: tại một lát đã kiểm chứng, đo ở mốc tròn ra 10.457 bài/giờ, trung bình 8 vị trí ra 6.579, còn đếm trọn
+    10 phút — không lấy mẫu, không suy luận — ra <b>6.276</b>. Rải ngẫu nhiên thì ước lượng không còn lệch một phía.
+    <br><b>Retweet được tính.</b> Search của X loại retweet ra theo mặc định; phải thêm <code>include:nativeretweets</code> mới thấy.
+    Với trend fandom thì retweet chiếm ${pct(main.rtShare * 100, 100)} tổng lượng bài, bỏ qua là hụt mất phần lớn.
     <br><b>Lưu ý về tương tác.</b> Bài đăng lúc 20h tối qua đã có 24 giờ để tích lượt thích, bài đăng lúc 19h hôm nay mới có 1 giờ —
     nên con số tương tác trung bình nghiêng về phía thấp.
   </p>

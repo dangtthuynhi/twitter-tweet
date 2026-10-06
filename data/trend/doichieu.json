@@ -1,0 +1,66 @@
+{
+  "title": "Tổng số bài tại 20:00 ngày 3/10",
+  "caption": "Hết cửa sổ 24 giờ. Suy từ bộ đếm trend của X lúc 18:30, cộng thêm phần 1,5 giờ cuối đo từ tốc độ thực của chính khoảng đó.",
+  "columns": {
+    "label": "Hashtag",
+    "value": "Tổng bài",
+    "note": "Suy ra từ đâu"
+  },
+  "_ghi_chu": "Các dòng có \"hidden\": true vẫn giữ nguyên ở đây nhưng không vẽ ra bảng. Bỏ dòng hidden đi là chúng hiện lại — dùng khi cần truy lại vì sao ra con số này.",
+  "rows": [
+    {
+      "label": "LENAMIU PLS LOVE EP4",
+      "value": 372298,
+      "highlight": true,
+      "note": "Bộ đếm X tại 18:30 là 347.700; cộng thêm ~24.600 bài của 1,5 giờ cuối."
+    },
+    {
+      "label": "#PlsLoveรักได้ไหมEP4",
+      "value": 377864,
+      "highlight": true,
+      "note": "Bộ đếm X tại 18:30 là 354.200, cộng ~23.700 bài của 1,5 giờ cuối."
+    },
+    {
+      "hidden": true,
+      "label": "Bộ đếm trend của X tại 18:30 — LENAMIU",
+      "value": 347700,
+      "note": "Số bạn đọc được. Nó cộng dồn từ lúc trend bắt đầu (~20:00 ngày 2/10, trước đó đo được 0 bài) tới 18:30, tức 22,5 giờ."
+    },
+    {
+      "hidden": true,
+      "label": "Bộ đếm trend của X tại 18:30 — #PlsLove",
+      "value": 354200,
+      "note": "Đọc cùng lúc. Hai tag lệch nhau 2%."
+    },
+    {
+      "hidden": true,
+      "label": "Search của X trả về, cùng 22,5 giờ đó",
+      "value": 200844,
+      "note": "So cùng một khoảng thời gian với bộ đếm: 200.844 / 347.700 = 57,8%. Hashtag Thái ra 56,9%. Hai tag độc lập cùng ra ~57% — đây là hệ số che phủ có hệ thống của search."
+    },
+    {
+      "hidden": true,
+      "label": "Search của X trả về, cả 24 giờ",
+      "value": 215052,
+      "note": "Đã kiểm chứng: đếm trọn một lát 30 phút thì cách lấy mẫu chỉ lệch dưới 6%. Search đếm ĐÚNG phần nó thấy, nhưng nó chỉ thấy 57%."
+    },
+    {
+      "hidden": true,
+      "label": "Phần hợp hai hashtag, đã khử trùng",
+      "value": 225737,
+      "note": "Một truy vấn OR, mỗi tweet đếm một lần (thang search). Chỉ hơn một hashtag đơn lẻ 5% — vì 90% bài mang cả hai tag."
+    },
+    {
+      "hidden": true,
+      "label": "Cộng hai hashtag lại",
+      "value": 429982,
+      "note": "CÁCH ĐẾM SAI nhưng hay gặp: mỗi bài mang cả hai tag bị tính hai lần."
+    },
+    {
+      "hidden": true,
+      "label": "Chỉ bài gốc, bỏ retweet",
+      "value": 76692,
+      "note": "Con số đầu tiên mình đưa, và nó SAI: search loại retweet theo mặc định, mà retweet chiếm 64% lượng bài."
+    }
+  ]
+}

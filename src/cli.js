@@ -425,8 +425,20 @@ async function main() {
       const name = opts.out || 'trend.json';
       const file = path.resolve(process.cwd(), 'data/trend', name);
 
+      // --compare tro toi mot file JSON dang [{label, value, note}] de ve them
+      // bang doi chieu — cung mot trend ra nhieu con so tuy vao dem cai gi.
+      const compare = opts.compare
+        ? JSON.parse(fsSync.readFileSync(path.resolve(process.cwd(), opts.compare), 'utf8'))
+        : null;
+
+      // --calibrate 1.63 : search cua X khong index het bai. Khi co mot moc dang
+      // tin ben ngoai (bo dem trend cua X) thi khai bao he so o day.
+      const calibrate = opts.calibrate
+        ? { factor: Number(opts.calibrate), source: opts['calibrate-source'] || 'bộ đếm trend của X' }
+        : null;
+
       if (opts['only-html']) {                 // ve lai tu du lieu da co, mien phi
-        buildTrendDashboard(file, { out: html, title });
+        buildTrendDashboard(file, { out: html, title, compare, calibrate });
         break;
       }
       if (!queries.length) {
@@ -450,7 +462,7 @@ async function main() {
         target: Number(opts.target) || 45,
         out: name,
       });
-      buildTrendDashboard(file, { out: html, title });
+      buildTrendDashboard(file, { out: html, title, compare, calibrate });
       break;
     }
     case 'ipwatch':
