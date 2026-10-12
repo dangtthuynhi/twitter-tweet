@@ -4,7 +4,9 @@
 
 Tự đăng bài lên X (Twitter) theo lịch.
 
-Bạn nhập **nhãn** (hashtag) và **số bài muốn đăng**. Nội dung thì công cụ tự bốc ngẫu nhiên từ kho 10.000 câu có sẵn — mỗi bài một câu khác nhau, không bài nào trùng bài nào.
+Bạn nhập **nhãn** (hashtag) và **số bài muốn đăng**. Nội dung thì công cụ tự bốc ngẫu nhiên từ kho 20.000 câu có sẵn — **mỗi lần đăng bốc một câu mới**, không bài nào trùng bài nào.
+
+Ngoài ra có thể dán **list tweet id** (ví dụ các bài của LenaMiu_CH3): công cụ vào từng bài, **reply** bằng một câu trong kho kèm nhãn của bạn, rồi **retweet** bài đó.
 
 Cần biết trước:
 
@@ -73,18 +75,29 @@ Gõ gì cũng được — chữ hoa, chữ thường, tiếng Thái, emoji. Kh�
 ### Bài đăng ra trông thế nào
 
 ```
-LenaMiu's warmth brightens my whole week 🌟     ← câu bốc ngẫu nhiên
-22:16 02-10-2026                                ← ngày giờ
-LENAMIU AT FLEX                                 ← nhãn của bạn
+Okay, I need to talk about this. Every time Miu   ← câu bốc ngẫu nhiên,
+smiles, the whole scene feels softer. Lena's         dài khoảng 150–215 ký tự
+expressions in the latest episode are still
+living in my head. Ten out of ten, no notes. 🌟
+                                                  ← một dòng trống
+LENAMIU AT FLEX                                   ← nhãn của bạn
 #Flex1045xPLSLoveรักได้ไหม
 #LenaMiu #ลีน่าหมิว
 ```
+
+X chỉ cho mỗi bài **280 ký tự** (emoji tính 2). Câu và nhãn cộng lại phải nằm trong đó, nên khi nhãn dài, công cụ **tự cắt bớt câu cho vừa** — nhãn thì giữ nguyên:
+
+- Bỏ dần từng câu ở cuối (câu kết trước), vẫn giữ emoji cuối bài.
+- Vẫn dài thì bỏ emoji và câu mở đầu, nhưng luôn giữ câu có tên Lena / Miu.
+- Chỉ khi còn một câu mà vẫn dài mới cắt giữa câu (đúng chỗ hết một từ) và thêm `…`.
+
+Ngay dưới ô nhãn có dòng báo, ví dụ `Label 62 ký tự · còn 216/280 cho content · câu nào cũng vừa`. Nhãn mẫu ở trên thì không câu nào bị cắt. Nhãn dài quá, chỉ còn dưới 30 ký tự cho câu, thì dòng đó báo đỏ và công cụ dừng lại — rút gọn nhãn rồi bấm "Bắt đầu" lại.
 
 ### Các ô cài đặt
 
 | Ô | Nghĩa |
 |---|---|
-| **Số tweet muốn đăng** | Soạn sẵn bao nhiêu bài |
+| **Số tweet muốn đăng** | Soạn sẵn bao nhiêu bài mới. Để `0` nếu chỉ muốn reply + retweet theo list tweet |
 | **Cách nhau ... đến ... phút** | Chờ ngẫu nhiên trong khoảng này giữa hai bài |
 | **Tối đa ... bài/ngày** | Đủ số này thì nghỉ tới hôm sau |
 | **Chỉ đăng từ ... đến ... giờ** | Khung giờ được phép đăng. Để 7–23 thì không đăng lúc nửa đêm |
@@ -108,15 +121,47 @@ Tới giờ, màn hình tự mở ô soạn bài, tự gõ và tự đăng. **Đ
 
 **Dừng:** bấm nút đỏ **"Dừng"** bất cứ lúc nào.
 
+**Xoá hàng đợi:** bấm **"Xoá hàng đợi"** để bỏ hết các việc đang chờ (bài mới, reply, retweet) và dừng bot. Dòng giữa bảng đổi thành `○ Hàng đợi trống`. Muốn chạy lại thì sửa ô nhập hoặc bấm **"Bắt đầu"** — công cụ soạn hàng đợi mới từ những gì đang có trong các ô.
+
+> **Xoá hàng đợi** khác **Xoá lịch sử**: xoá hàng đợi chỉ bỏ việc *chưa làm*, công cụ vẫn nhớ câu nào đã đăng, tweet nào đã reply/retweet nên không làm lại. Xoá lịch sử thì quên hết những thứ đó.
+
 ---
 
-## 4. Tìm bài để retweet
+## 4. Reply + retweet theo list tweet
 
-Bấm **"🔎 Tìm theo từ khoá"** để mở ra.
+Ô **"List tweet"** nằm ngay dưới ô số tweet. **Mỗi dòng một tweet id** — là dãy số cuối link bài:
 
-Nhập từ khoá (ví dụ `#dulich`), các từ muốn loại trừ, số like tối thiểu *(đặt 5–10 để lọc bài rác)*, rồi bấm **"Tìm ngay"**.
+```
+2103095712292696459
+2103000000000000001
+```
 
-Để **"Duyệt tay trước"** bật. Công cụ đưa danh sách bài tìm được, mỗi bài bạn bấm **Lấy** / **Bỏ** / **xem**.
+> Lấy id thế nào: mở bài trên X, link có dạng `https://x.com/LenaMiu_CH3/status/2103095712292696459` — id là dãy số sau `/status/`. Dán nguyên cả link vào ô cũng được, công cụ tự lấy id ra.
+
+Ô **"Mỗi tweet reply ... lần, rồi retweet"**: mỗi tweet sẽ được reply bấy nhiêu lần (mỗi lần một câu khác nhau), sau đó retweet một lần. Để `0` thì chỉ retweet, không reply.
+
+**Reply dùng chính nhãn ở ô trên cùng** — giống hệt bài đăng mới: một câu trong kho, cách một dòng trống, rồi đến nhãn:
+
+```
+Lena and Miu make every scene feel like home. 💗
+
+LENAMIU AT FLEX
+#Flex1045xPLSLoveรักได้ไหม
+#LenaMiu #ลีน่าหมิว
+```
+
+Nhãn dài thì câu tự cắt bớt cho vừa 280 ký tự, nhãn giữ nguyên (xem phần "Bài đăng ra trông thế nào"). Chưa nhập nhãn thì reply chỉ có câu, dòng báo dưới ô list sẽ nhắc.
+
+Bên dưới ô list có dòng đếm, ví dụ `2 tweet → 2 reply + 2 retweet · xong 0/4`. Dòng nào không phải tweet id hay link bài sẽ được báo và bỏ qua.
+
+Thứ tự chạy: **làm hết list tweet trước** (reply, reply…, retweet, sang tweet sau), **rồi mới đăng bài mới**. Các việc vẫn cách nhau theo ô "Cách nhau ... phút" và tính vào "Tối đa ... bài/ngày" — mỗi reply, mỗi retweet là một bài.
+
+Cần biết:
+
+- **Bài đã retweet từ trước** thì bỏ qua, không tính là lỗi, chạy sang việc kế tiếp ngay.
+- **Tweet đã làm rồi thì không làm lại**, kể cả khi bạn sửa nhãn hay dán lại cùng id. Muốn reply thêm thì tăng số lần reply (ví dụ 1 → 2), công cụ chỉ làm phần còn thiếu. Muốn làm lại từ đầu thì bấm **"Xoá lịch sử"**.
+- **Bài khoá reply** (chủ bài chỉ cho một số người trả lời) sẽ báo lỗi ở phần reply, nhưng vẫn retweet.
+- **Reply hàng loạt cùng một kiểu dễ bị X hạn chế** hơn đăng bài thường. Mỗi tweet nên reply ít lần, và giữ khoảng cách vài phút.
 
 ---
 
@@ -124,7 +169,7 @@ Nhập từ khoá (ví dụ `#dulich`), các từ muốn loại trừ, số like
 
 **Đừng đăng quá nhiều.** Công cụ để sẵn 100 bài/ngày cách nhau 1–4 phút — đó là số chạy thử. Dùng lâu dài nên hạ xuống: ít bài hơn, giãn cách vài chục phút. X cũng chỉ cho khoảng 50 bài/ngày với tài khoản thường.
 
-**Retweet hàng loạt là vi phạm.** X cấm rõ việc này — đó là lý do nên để "Duyệt tay trước" bật.
+**Retweet và reply hàng loạt là vi phạm.** X cấm rõ việc này — chỉ đưa vào list những bài bạn thật sự muốn tương tác, và đừng để list quá dài.
 
 **Công cụ chỉ chạy trên X.** Không đụng tới trang nào khác, không lấy mật khẩu.
 
@@ -134,7 +179,7 @@ Nhập từ khoá (ví dụ `#dulich`), các từ muốn loại trừ, số like
 
 **Không thấy bảng điều khiển** — Kiểm tra đang ở đúng x.com → nhấn F5 → vào `chrome://extensions` xem ô "X Auto Poster" còn bật không.
 
-**Bấm Bắt đầu mà báo hàng đợi trống** — Bạn chưa nhập nhãn.
+**Bấm Bắt đầu mà báo hàng đợi trống** — Bạn chưa nhập nhãn (hoặc để số tweet là 0 mà list tweet còn trống).
 
 **Bấm Bắt đầu rồi mà mãi không đăng** — Nhìn số đếm ngược giữa bảng. Đang đếm thì cứ để yên.
 
@@ -144,14 +189,14 @@ Nhập từ khoá (ví dụ `#dulich`), các từ muốn loại trừ, số like
 
 **Nhật ký nhắc tới `content-lenamiu.json`** — Thiếu file kho câu. Kiểm tra thư mục `chrome-extension` có file đó không, thiếu thì giải nén lại rồi vào `chrome://extensions` bấm **Tải lại** (↻).
 
-**Muốn dùng lại các câu đã đăng** — Bấm **"Xoá lịch sử"**. Thường không cần, vì 10.000 câu là rất nhiều.
+**Muốn dùng lại các câu đã đăng** — Bấm **"Xoá lịch sử"**. Thường không cần, vì 20.000 câu là rất nhiều.
 
 ---
 
 ## 7. Hỏi đáp
 
 **Các bài có trùng nội dung nhau không?**
-Không. Công cụ nhớ những câu đã dùng nên không lấy lại.
+Không. Mỗi lần đăng, công cụ bốc ngẫu nhiên một câu trong số những câu **chưa từng đăng kèm nhãn này**, nên không lấy lại câu cũ. Đổi sang nhãn khác thì cả kho lại dùng được từ đầu.
 
 **Tắt máy hoặc đóng tab X thì sao?**
 Nó dừng. Mở lại x.com rồi bấm "Bắt đầu" là chạy tiếp. Nhãn và cài đặt vẫn còn.

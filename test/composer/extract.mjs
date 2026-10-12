@@ -6,9 +6,11 @@ import url from 'node:url';
 
 const here = path.dirname(url.fileURLToPath(import.meta.url));
 const SRC = path.join(here, '..', '..', 'browser-script', 'x-auto-poster.user.js');
-const src = fs.readFileSync(SRC, 'utf8').split('\n');
+// Windows checkout voi core.autocrlf=true ra CRLF: tach theo '\n' thi moi dong
+// con duoi '\r' va dong ket thuc ham khong bao gio bang '  }'.
+const src = fs.readFileSync(SRC, 'utf8').split(/\r?\n/);
 
-function grabFn(name) {
+export function grabFn(name) {
   const start = src.findIndex((l) =>
     new RegExp(`^  (async )?function ${name}\\(`).test(l));
   if (start < 0) throw new Error(`khong thay function ${name}`);
@@ -17,11 +19,12 @@ function grabFn(name) {
   return src.slice(start, end + 1).join('\n');
 }
 
-function grabConst(name) {
+export function grabConst(name) {
   const start = src.findIndex((l) => new RegExp(`^  const ${name} = `).test(l));
   if (start < 0) throw new Error(`khong thay const ${name}`);
   let end = start;
-  while (!src[end].trimEnd().endsWith(';')) end++;
+  // Bo chu thich cuoi dong ("...;   // ghi chu") truoc khi tim dau ';' ket thuc
+  while (!src[end].replace(/\s+\/\/ .*$/, '').trimEnd().endsWith(';')) end++;
   return src.slice(start, end + 1).join('\n');
 }
 

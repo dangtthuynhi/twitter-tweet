@@ -20,7 +20,10 @@
     "check": "node src/cli.js check",
     "list": "node src/cli.js list",
     "build:ext": "node build-extension.mjs",
-    "test:composer": "node test/composer/run.mjs"
+    "gen:content": "node gen-content.mjs",
+    "test:composer": "node test/composer/run.mjs",
+    "test:status": "node test/status/run.mjs",
+    "test:queue": "node test/queue/run.mjs"
   },
   "engines": {
     "node": ">=20"

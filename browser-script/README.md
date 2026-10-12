@@ -76,26 +76,20 @@ Quy tắc chung:
 
 Chỉnh nhịp đăng, độ lệch ngẫu nhiên, trần bài/ngày rồi bấm **Bắt đầu**.
 
-## Retweet theo từ khoá
+## Reply + retweet theo list tweet
 
-Mở khối **🔎 Tìm theo từ khoá** trong bảng điều khiển:
+Ô **List tweet** ngay dưới ô số tweet: mỗi dòng một tweet id (dán cả link `https://x.com/<user>/status/<id>` cũng được, script tự lấy id; dòng không đọc được thì báo và bỏ qua).
 
 | Ô | Ý nghĩa |
 |---|---|
-| Từ khoá | Cú pháp tìm kiếm của X: `#nodejs`, `typescript OR deno`, `from:vercel` |
-| Loại trừ | Bỏ bài chứa các từ này, cách nhau dấu phẩy |
-| Tối thiểu N like | Bỏ bài chưa ai tương tác — lọc rác hiệu quả nhất |
-| Lấy N bài | Trần mỗi lần quét |
-| Duyệt tay trước | Hiện danh sách để bạn chọn, thay vì tự đẩy vào hàng đợi |
-| Bài mới nhất | Tab "Latest" thay vì "Top" |
+| List tweet | Các bài cần tương tác, mỗi dòng một id |
+| Mỗi tweet reply N lần | Reply N lần (mỗi lần một câu khác nhau) rồi retweet một lần. `0` = chỉ retweet |
 
-Bấm **Tìm ngay** → script mở trang tìm kiếm, đọc kết quả, rồi quay về.
+Reply dùng **đúng cụm nhãn ở ô trên cùng**, ghép như bài đăng mới: câu bốc ngẫu nhiên từ `content-lenamiu.json`, một dòng trống, rồi nhãn — câu tự cắt bớt nếu cộng lại vượt 280 ký tự.
 
-Nó tự bỏ qua: bài quảng cáo, bài của chính bạn, bài đã retweet, bài đã nằm trong hàng đợi, bài không có nội dung, bài dưới ngưỡng like, và bài chứa từ loại trừ.
+Các việc theo list chạy trước bài mới, cách nhau theo nhịp đăng như mọi bài khác. Script bấm đúng nút của **chính bài có id đó** (nhận ra qua link thời gian của bài), không phải bài cha hay reply nằm cùng trang. Bài đã retweet từ trước thì bỏ qua; bài đã reply/retweet rồi thì không làm lại.
 
-Với **Duyệt tay** bật (mặc định), các bài tìm được hiện thành danh sách kèm handle, số like và đoạn nội dung — bạn bấm **Lấy** hoặc **Bỏ** từng bài, hoặc **Lấy hết** / **Bỏ hết**. Link **xem** mở bài gốc ra tab mới để đọc trước.
-
-> Mặc định bật duyệt tay là có chủ ý. Retweet hàng loạt mọi thứ khớp từ khoá là thứ X gọi thẳng tên trong luật: *"Bulk, aggressive, or spammy reposting is a violation of the X Rules"*. Chọn lọc vài bài thật sự hay thì vừa hợp lệ, vừa giữ được chất lượng feed của bạn.
+> Retweet và reply hàng loạt là thứ X gọi thẳng tên trong luật: *"Bulk, aggressive, or spammy reposting is a violation of the X Rules"*. Chỉ đưa vào list những bài thật sự muốn tương tác, và giữ list ngắn.
 
 ## Nhịp đăng
 
@@ -131,7 +125,7 @@ chờ đến giờ → ghi "pending" → điều hướng
   → trang nạp lại → thấy "pending" → thao tác DOM → xoá pending → hẹn giờ tiếp
 ```
 
-Tìm kiếm cũng đi qua đúng cơ chế đó: `pending = {type:'search'}` → mở trang kết quả → trang nạp lại → đọc kết quả → xoá pending.
+Reply/retweet theo list cũng đi qua đúng cơ chế đó khi bài không có sẵn trên trang: `pending = {type:'reply'|'retweet', id}` → mở `x.com/i/status/<id>` → trang nạp lại → thao tác trên bài → xoá pending.
 
 ### Ưu tiên điều hướng nội bộ
 

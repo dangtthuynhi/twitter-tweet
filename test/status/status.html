@@ -1,0 +1,133 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../../node_modules/draft-js/dist/Draft.css">
+<style>body{font:14px system-ui;padding:20px}article{border:1px solid #ccc;margin:6px 0;padding:6px}</style></head>
+<body>
+<!-- Trang mot bai viet gia lap, deo cung testid nhu tren x.com:
+       111  bai cha, nam TREN bai chinh (bai chinh la reply cua no)
+       222  bai chinh
+       333  reply nam DUOI bai chinh
+       444  bai da retweet tu truoc (nut la "unretweet")
+       555  bai khong cho reply (nut reply bi khoa)
+     Bam reply mo modal co o soan thao Draft.js that. ?locked=1 thi nut gui
+     trong modal khong bao gio bat len. -->
+<main id="thread"></main>
+<script src="../../node_modules/react/umd/react.development.js"></script>
+<script src="../../node_modules/react-dom/umd/react-dom.development.js"></script>
+<script src="../../node_modules/immutable/dist/immutable.js"></script>
+<script src="../../node_modules/draft-js/dist/Draft.js"></script>
+<script>
+  window.__retweeted = [];
+  window.__replies = [];
+  window.__drafts = [];
+  window.__text = '';
+  const locked = new URLSearchParams(location.search).has('locked');
+
+  function articleHtml(id, { retweeted = false, noReply = false } = {}) {
+    return `<article data-testid="tweet" data-id="${id}">
+      <a href="/someone/status/${id}"><time>${id}</time></a>
+      <a href="/someone/status/${id}/photo/1">anh</a>
+      <div data-testid="tweetText">bai ${id}</div>
+      <button data-testid="reply"${noReply ? ' aria-disabled="true"' : ''}>reply</button>
+      <button data-testid="${retweeted ? 'unretweet' : 'retweet'}">rt</button>
+    </article>`;
+  }
+  document.getElementById('thread').innerHTML = [
+    articleHtml('111'), articleHtml('222'), articleHtml('333'),
+    articleHtml('444', { retweeted: true }), articleHtml('555', { noReply: true }),
+  ].join('');
+
+  const { Editor, EditorState } = Draft;
+  class Composer extends React.Component {
+    constructor(p) { super(p); this.state = { editorState: EditorState.createEmpty() }; }
+    tag() {
+      const el = this.props.host.querySelector('.public-DraftEditor-content');
+      if (el) el.setAttribute('data-testid', 'tweetTextarea_0');
+    }
+    componentDidMount() { this.tag(); }
+    componentDidUpdate() { this.tag(); }
+    render() {
+      return React.createElement(Editor, {
+        editorState: this.state.editorState,
+        onChange: (es) => {
+          window.__text = es.getCurrentContent().getPlainText('\n');
+          this.setState({ editorState: es });
+        },
+        placeholder: 'Post your reply',
+      });
+    }
+  }
+
+  let menuFor = null;
+  function closeDialog(dialog) {
+    ReactDOM.unmountComponentAtNode(dialog.querySelector('.editor'));
+    dialog.remove();
+    window.__text = '';
+  }
+
+  document.addEventListener('click', (ev) => {
+    const t = ev.target.closest('[data-testid]');
+    if (!t) return;
+    const id = t.closest('article')?.dataset.id;
+    switch (t.dataset.testid) {
+      case 'retweet': {
+        menuFor = id;
+        const menu = document.createElement('div');
+        menu.setAttribute('role', 'menu');
+        menu.innerHTML = '<div role="menuitem" data-testid="retweetConfirm">Repost</div>';
+        document.body.appendChild(menu);
+        break;
+      }
+      case 'retweetConfirm': {
+        window.__retweeted.push(menuFor);
+        document.querySelector(`#thread article[data-id="${menuFor}"] [data-testid="retweet"]`)
+          .setAttribute('data-testid', 'unretweet');
+        t.closest('[role="menu"]').remove();
+        break;
+      }
+      case 'reply': {
+        if (t.getAttribute('aria-disabled') === 'true') return;
+        const dialog = document.createElement('div');
+        dialog.setAttribute('role', 'dialog');
+        dialog.dataset.for = id;
+        dialog.innerHTML = `<button data-testid="app-bar-close">x</button>
+          ${articleHtml(id)}
+          <div class="editor"></div>
+          <button data-testid="tweetButton"${locked ? ' aria-disabled="true"' : ''}>Reply</button>`;
+        document.body.appendChild(dialog);
+        const host = dialog.querySelector('.editor');
+        ReactDOM.render(React.createElement(Composer, { host }), host);
+        break;
+      }
+      case 'tweetButton': {
+        if (t.getAttribute('aria-disabled') === 'true') return;
+        const dialog = t.closest('[role="dialog"]');
+        window.__replies.push({ id: dialog.dataset.for, text: window.__text });
+        closeDialog(dialog);
+        break;
+      }
+      case 'app-bar-close': {
+        const dialog = t.closest('[role="dialog"]');
+        if (!window.__text) { closeDialog(dialog); break; }
+        // Con chu thi hoi "Save post?" nhu X
+        const sheet = document.createElement('div');
+        sheet.setAttribute('role', 'dialog');
+        sheet.dataset.testid = 'confirmationSheetDialog';
+        sheet.innerHTML = '<div>Save post?</div>' +
+          '<button data-testid="confirmationSheetConfirm">Save</button>' +
+          '<button data-testid="confirmationSheetCancel">Discard</button>';
+        sheet.onclick = (e) => {
+          const b = e.target.closest('button');
+          if (!b) return;
+          e.stopPropagation();
+          if (/save/i.test(b.textContent)) window.__drafts.push(window.__text);
+          sheet.remove();
+          closeDialog(dialog);
+        };
+        document.body.appendChild(sheet);
+        break;
+      }
+    }
+  });
+  window.__ready = true;
+</script>
+</body></html>
