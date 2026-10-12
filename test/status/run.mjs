@@ -26,7 +26,8 @@ ${[
   grabConst('onStatusPage'), grabFn('doRetweet'), grabFn('doReply'), grabFn('parseLinks'),
   grabFn('composerScope'), grabConst('REPLY_HINT_RE'), grabFn('replyViaCompose'),
   grabFn('dismissOverlays'), grabConst('REPOST_RE'), grabConst('UNDO_REPOST_RE'),
-  grabConst('CANCEL_RE'), grabFn('retweetViaIntent'),
+  grabConst('CANCEL_RE'), grabConst('OVERLAY_SELECTOR'), grabFn('describeScreen'),
+  grabFn('retweetViaIntent'),
 ].join('\n\n')}
 
   return { findArticle, doRetweet, doReply, parseLinks, replyViaCompose, retweetViaIntent };
@@ -178,10 +179,21 @@ console.log('\n6. Retweet qua hop thoai retweet — duong dung khi tab X an');
   s = await state();
   check('menu unretweetConfirm: KHONG go retweet, dong menu (Esc)', r.ok && r.value === false && !s.undone.length && !s.open, [r, s]);
 
+  r = await run('107', 'confirm-sheet');
+  s = await state();
+  check('hop thoai xac nhan that cua X (alertdialog, confirmationSheetDialog): bam Repost',
+    r.ok && r.value === true && s.rt.includes('107') && !s.open, [r, s]);
+
+  r = await run('108', 'confirm-undo');
+  s = await state();
+  check('hop thoai "Undo repost?" ma nut chi ghi "Undo": KHONG bam, bam Cancel',
+    r.ok && r.value === false && !s.undone.length && !s.rt.includes('108') && !s.open, [r, s]);
+
   r = await run('106', 'unknown');
   s = await state();
-  check('khong nhan ra nut nao: bao loi, khong bam gi',
-    !r.ok && /Khong thay hop thoai retweet/.test(r.err) && !s.rt.includes('106'), [r, s]);
+  check('khong nhan ra nut nao: bao loi kem mo ta man hinh, khong bam gi',
+    !r.ok && /Khong thay hop thoai retweet/.test(r.err) && /dang o .*nut: OK/.test(r.err) &&
+      !s.rt.includes('106'), [r, s]);
   await page.close();
 }
 

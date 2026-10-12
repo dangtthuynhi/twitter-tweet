@@ -20,7 +20,8 @@ export function grabFn(name) {
 }
 
 export function grabConst(name) {
-  const start = src.findIndex((l) => new RegExp(`^  const ${name} = `).test(l));
+  // "= " roi gia tri, hoac "=" cuoi dong khi gia tri xuong dong ben duoi
+  const start = src.findIndex((l) => new RegExp(`^  const ${name} =( |$)`).test(l));
   if (start < 0) throw new Error(`khong thay const ${name}`);
   let end = start;
   // Bo chu thich cuoi dong ("...;   // ghi chu") truoc khi tim dau ';' ket thuc

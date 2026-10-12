@@ -153,13 +153,24 @@
       'undo-en': { role: 'dialog', items: [['button', '', 'Undo repost', 'undo'], ['button', '', 'Cancel', 'cancel']] },
       'menu-undo': { role: 'menu', items: [['div', 'unretweetConfirm', 'Undo repost', 'undo'], ['div', '', 'Quote', 'none']] },
       unknown: { role: 'dialog', items: [['button', '', 'OK', 'none']] },
+      // Hop thoai xac nhan that cua X: confirmationSheetDialog, role="alertdialog"
+      'confirm-sheet': { role: 'alertdialog', testid: 'confirmationSheetDialog', heading: 'Repost this post?',
+        items: [['div', 'confirmationSheetConfirm', 'Repost', 'rt'], ['div', 'confirmationSheetCancel', 'Cancel', 'cancel']] },
+      'confirm-undo': { role: 'alertdialog', testid: 'confirmationSheetDialog', heading: 'Undo repost?',
+        items: [['div', 'confirmationSheetConfirm', 'Undo', 'undo'], ['div', 'confirmationSheetCancel', 'Cancel', 'cancel']] },
     };
     const k = KINDS[kind];
     const box = document.createElement('div');
     box.setAttribute('role', k.role);
+    if (k.testid) box.dataset.testid = k.testid;
+    if (k.heading) {
+      const h = document.createElement('h1');
+      h.textContent = k.heading;
+      box.appendChild(h);
+    }
     for (const [tag, testid, label, act] of k.items) {
       const b = document.createElement(tag);
-      if (tag === 'div') b.setAttribute('role', 'menuitem');
+      if (tag === 'div') b.setAttribute('role', k.role === 'menu' ? 'menuitem' : 'button');
       if (testid) b.dataset.testid = testid;
       b.textContent = label;
       b.onclick = (e) => {

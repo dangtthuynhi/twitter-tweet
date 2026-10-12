@@ -881,6 +881,21 @@
   const REPOST_RE = /^(repost|retweet|đăng lại|รีโพสต์|retweeten|reposter|repostear|リポスト|转帖|재게시)$/i;
   const UNDO_REPOST_RE = /(undo|hoàn tác|huỷ|hủy|ยกเลิก|rückgängig|deshacer|annuler|取り消|撤销|취소).*(repost|retweet|đăng lại|รีโพสต์|リポスト|转帖|재게시)/i;
   const CANCEL_RE = /^(cancel|hủy|huỷ|ยกเลิก|abbrechen|cancelar|annuler|キャンセル|取消|취소)$/i;
+  const OVERLAY_SELECTOR =
+    '[role="dialog"], [role="alertdialog"], [role="menu"], [data-testid="confirmationSheetDialog"]';
+
+  /**
+   * Mo ta ngan man hinh luc loi: dang o trang nao, co may hop thoai, chu tren
+   * cac nut. Ghi vao nhat ky de con lan ra khi X ve khac di.
+   */
+  function describeScreen() {
+    const boxes = [...document.querySelectorAll(OVERLAY_SELECTOR)];
+    const labels = boxes
+      .flatMap((b) => [...b.querySelectorAll('[role="button"], button, [role="menuitem"]')])
+      .map((b) => (b.innerText || b.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' '))
+      .filter(Boolean).slice(0, 8);
+    return `dang o ${location.pathname}${location.search}, ${boxes.length} hop thoai, nut: ${labels.join(' | ') || '(khong co)'}`;
+  }
 
   /**
    * Retweet qua hop thoai retweet cua X (x.com/intent/retweet?tweet_id=<id>) —
@@ -896,14 +911,19 @@
     // nhan theo testid cua X truoc, theo chu tren nut sau
     const clickables = (root) => [...root.querySelectorAll('[role="button"], button, [role="menuitem"]')];
     const textOf = (b) => (b.innerText || '').trim();
+    // Tieu de hop thoai, vd "Undo repost?" khi nut chi ghi "Undo"
+    const heading = (root) => (root.querySelector('h1, h2, [role="heading"]')?.innerText || '').trim();
     const undoIn = (root) => root.querySelector('[data-testid="unretweetConfirm"]') ||
-      clickables(root).find((b) => UNDO_REPOST_RE.test(textOf(b)));
+      clickables(root).find((b) => UNDO_REPOST_RE.test(textOf(b))) ||
+      (UNDO_REPOST_RE.test(heading(root)) ? root : null);
     const repostIn = (root) => root.querySelector('[data-testid="retweetConfirm"]') ||
       clickables(root).find((b) => REPOST_RE.test(textOf(b)));
-    const find = () => [...document.querySelectorAll('[role="dialog"], [role="menu"]')]
+    // Hop thoai xac nhan cua X la "confirmationSheetDialog", thuong mang
+    // role="alertdialog" chu khong phai "dialog" — xem answerSaveSheet()
+    const find = () => [...document.querySelectorAll(OVERLAY_SELECTOR)]
       .find((d) => undoIn(d) || repostIn(d));
     if (!(await until(find, 15000, 300))) {
-      throw new Error(`Khong thay hop thoai retweet cua bai ${id}`);
+      throw new Error(`Khong thay hop thoai retweet cua bai ${id} — ${describeScreen()}`);
     }
     const sheet = find();
     // Kiem nut go retweet TRUOC: co no tuc la bai da retweet roi
@@ -1043,6 +1063,7 @@
     state.pending = null;
     save(state);
     busy = true;
+    let ok = false;
 
     try {
       // Tim kiem da bo. Viec tim kiem con do tu ban cu thi vut di.
@@ -1069,6 +1090,7 @@
       markDone(job);
       state.perDay[today()] = countToday() + 1;
       consecutiveFails = 0;
+      ok = true;
     } catch (e) {
       const seen = describeOverlay();
       addLog(`Loi: ${e.message}${seen ? ` — man hinh dang hien: "${seen}"` : ''}`, 'err');
@@ -1091,7 +1113,8 @@
       busy = false;
     }
 
-    scheduleNext();
+    if (ok) scheduleAfter(job);
+    else scheduleNext();
   }
 
   /**
@@ -1359,6 +1382,34 @@
     markDone(job);
     state.perDay[today()] = countToday() + 1;
     addLog(msg, 'ok');
+    scheduleAfter(job);
+  }
+
+  // Retweet cung bai chay ngay sau reply cuoi cua no: chi doi ngau nhien
+  // trong khoang nay (ms), khong doi theo o "Cach nhau ... phut"
+  const RETWEET_AFTER_REPLY = [3000, 10000];
+
+  /**
+   * Hen viec ke tiep sau mot viec vua XONG. Reply cuoi cung cua mot bai ma bai
+   * do con retweet dang cho thi retweet di sau vai giay — reply roi retweet
+   * cung luc nhu nguoi that. Con lai theo nhip binh thuong (scheduleNext).
+   *
+   * Khong rut ngan khi retweet dang doi tab hien lai: luc do viec ke tiep la
+   * reply cua bai KHAC, va no phai doi dung nhip.
+   */
+  function scheduleAfter(job) {
+    const pending = (type) => state.queue.some((i) => i.type === type && i.id === job.id &&
+      !state.posted.includes(fingerprint(i)));
+    if (job.type === 'reply' && pending('retweet') && !pending('reply') &&
+        !(state.waitVisible || []).includes('retweet')) {
+      const [lo, hi] = RETWEET_AFTER_REPLY;
+      const wait = lo + Math.random() * (hi - lo);
+      state.nextAt = Date.now() + wait;
+      addLog(`Retweet bai ${job.id} sau ${Math.round(wait / 1000)} giay.`);
+      save(state);
+      render();
+      return;
+    }
     scheduleNext();
   }
 

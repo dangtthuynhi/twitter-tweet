@@ -154,7 +154,7 @@ Nhãn dài thì câu tự cắt bớt cho vừa 280 ký tự, nhãn giữ nguyê
 
 Bên dưới ô list có dòng đếm, ví dụ `2 tweet → 2 reply + 2 retweet · xong 0/4`. Dòng nào không phải tweet id hay link bài sẽ được báo và bỏ qua.
 
-Thứ tự chạy: **làm hết list tweet trước** (reply, reply…, retweet, sang tweet sau), **rồi mới đăng bài mới**. Các việc vẫn cách nhau theo ô "Cách nhau ... phút" và tính vào "Tối đa ... bài/ngày" — mỗi reply, mỗi retweet là một bài.
+Thứ tự chạy: **làm hết list tweet trước** (reply, reply…, retweet, sang tweet sau), **rồi mới đăng bài mới**. Các việc cách nhau theo ô "Cách nhau ... phút" — **trừ retweet: chạy ngẫu nhiên 3–10 giây sau reply cuối cùng của chính bài đó**, như người thật reply xong thì bấm retweet luôn. Mỗi reply, mỗi retweet vẫn tính là một bài trong "Tối đa ... bài/ngày".
 
 Cần biết:
 

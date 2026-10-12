@@ -259,8 +259,50 @@ console.log('\n7. Tab X bi an (chay nen)');
   check('tab hien lai: lam reply bi giu truoc, du cursor da di qua', next?.type === 'reply' && next.index === 0, next);
 }
 
-// --- 8. kho content that ----------------------------------------------------
-console.log('\n8. Kho content-lenamiu.json that');
+// --- 8. retweet vai giay sau reply --------------------------------------------
+console.log('\n8. Retweet vai giay sau reply cuoi cua bai do');
+{
+  const env = () => {
+    const A = '2103095712292696459', B = '2103000000000000001';
+    const state = {
+      posted: [], waitVisible: [], nextAt: 0,
+      queue: [{ type: 'reply', id: A, n: 0 }, { type: 'reply', id: A, n: 1 }, { type: 'retweet', id: A },
+        { type: 'reply', id: B, n: 0 }, { type: 'retweet', id: B }],
+    };
+    let normal = 0;
+    const code = [
+      grabConst('fingerprint'), grabConst('RETWEET_AFTER_REPLY'), grabFn('scheduleAfter'),
+      'return { scheduleAfter, fingerprint };',
+    ].join('\n');
+    const fns = new Function('state', 'scheduleNext', 'save', 'render', 'addLog', code)(
+      state, () => { normal++; state.nextAt = -1; }, () => {}, () => {}, () => {});
+    const done = (i) => { state.posted.push(fns.fingerprint(state.queue[i])); fns.scheduleAfter(state.queue[i]); };
+    return { state, done, normal: () => normal };
+  };
+
+  const t = env();
+  t.done(0);
+  check('con reply thu hai cua bai do: theo nhip binh thuong', t.normal() === 1, t.state.nextAt);
+  const before = Date.now();
+  t.done(1);
+  const wait = t.state.nextAt - before;
+  check('reply cuoi cua bai: retweet sau 3-10 giay, KHONG theo nhip phut', t.normal() === 1 && wait >= 3000 && wait <= 10100, wait);
+  t.done(2);
+  check('xong retweet: viec sau (reply bai khac) theo nhip binh thuong', t.normal() === 2, t.state.nextAt);
+
+  const h = env();
+  h.state.waitVisible = ['retweet'];
+  h.done(0); h.done(1);
+  check('retweet dang doi tab hien lai: khong rut ngan (viec sau la reply bai khac)', h.normal() === 2, h.state.nextAt);
+
+  const v = env();
+  v.state.posted.push('rt:2103095712292696459');
+  v.done(0); v.done(1);
+  check('bai da retweet roi: khong rut ngan', v.normal() === 2, v.state.nextAt);
+}
+
+// --- 9. kho content that ----------------------------------------------------
+console.log('\n9. Kho content-lenamiu.json that');
 {
   const { default: data } = await import('../../content-lenamiu.json', { with: { type: 'json' } });
   const t = load({ contents: data.contents });
