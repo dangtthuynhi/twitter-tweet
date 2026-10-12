@@ -23,7 +23,8 @@
     "gen:content": "node gen-content.mjs",
     "test:composer": "node test/composer/run.mjs",
     "test:status": "node test/status/run.mjs",
-    "test:queue": "node test/queue/run.mjs"
+    "test:queue": "node test/queue/run.mjs",
+    "test:usertweets": "node test/usertweets/run.mjs"
   },
   "engines": {
     "node": ">=20"

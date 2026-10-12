@@ -70,6 +70,18 @@ console.log('\n2. Dung hang doi');
   t.refreshQueue();
   check('doi so luong thi dung lai, qid moi', t.state.queueId !== before && t.state.queue.length === 7, t.state.queueId);
   check('khong doi gi thi khong dung lai', t.refreshQueue() === false, null);
+
+  // Dan them tweet id vao list giua luc dang chay: tweet moi giu nguyen dot
+  const qid = t.state.queueId;
+  const tweetFps = t.state.queue.filter((i) => i.type === 'tweet').map(t.fingerprint).join();
+  t.state.settings.links += '\n2103000000000000001';
+  t.refreshQueue();
+  check('them tweet vao list: dung lai list nhung giu dot tweet moi (qid cu)',
+    t.state.queueId === qid && t.state.queue.length === 10 &&
+      t.state.queue.filter((i) => i.type === 'tweet').map(t.fingerprint).join() === tweetFps, t.state.queueId);
+  t.state.settings.labels += '\n#Moi';
+  t.refreshQueue();
+  check('doi label thi sang dot tweet moi (qid moi)', t.state.queueId !== qid, t.state.queueId);
 }
 
 // --- 3. boc content luc dang ------------------------------------------------
@@ -191,9 +203,11 @@ console.log('\n6. Nut Xoa hang doi');
   check('tai lai trang (o nhap khong doi) thi van trong', t.refreshQueue() === false && s.queue.length === 0, s.queue);
 
   // Bam Bat dau: dung moi tu o nhap
+  const qidBefore = s.queueId;
   s.queueSig = '';
   t.refreshQueue();
   check('bam Bat dau thi dung lai du 4 viec', s.queue.length === 4, s.queue.map((i) => i.type));
+  check('sau khi xoa hang doi, tweet moi la mot dot moi', s.queueId !== qidBefore, s.queueId);
   check('link da reply roi van tinh la xong, khong reply lai', t.pendingCount() === 3, t.pendingCount());
 }
 

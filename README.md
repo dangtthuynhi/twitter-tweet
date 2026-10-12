@@ -129,6 +129,31 @@ Theo dõi 10 account hỗn hợp rơi vào khoảng **$10–20/tháng** nếu kh
 
 > Con số chi phí ở trên tính theo giá công bố $0.00015/tweet. Blog của twitterapi.io đưa ra ước tính thấp hơn (~$0.48/tháng/account ở nhịp 30 phút), có thể họ chỉ tính phí theo request khi không có bài mới. Chạy `node src/cli.js watch` vài ngày đầu rồi đối chiếu dashboard để biết con số thật.
 
+## Lấy tweet id gần nhất của một người dùng
+
+Để dán vào ô **List tweet** của extension (reply + retweet). Chỉ cần `TWITTERAPI_KEY` trong `.env`, không cần tài khoản/proxy.
+
+```bash
+node src/cli.js tweets LenaMiu_CH3              # 20 tweet gần nhất: id, giờ đăng, đoạn đầu nội dung
+node src/cli.js tweets @miunatshaa --count 10   # số khác 20 (tối đa 100)
+node src/cli.js tweets LenaMiu_CH3 --replies    # lấy cả reply
+node src/cli.js tweets LenaMiu_CH3 --ids | clip # chỉ in id, chép thẳng vào clipboard (Windows)
+```
+
+Nhận cả `@handle`, `handle` hay link trang cá nhân / link một bài của họ. Chỉ lấy bài **của chính người đó** — bỏ bài họ repost lại của người khác, mặc định bỏ reply — xếp mới nhất trước (bài ghim cũ không chen vào đầu). Lọc xong chưa đủ số thì tự lấy thêm trang sau, tối đa 5 trang.
+
+Chi phí $0.00015/tweet API trả về: 20 tweet là ~$0.003, ~$0.006 nếu phải lấy thêm một trang vì bị lọc bớt.
+
+Lấy theo hashtag / cụm từ thì dùng `search` — cú pháp tìm kiếm của X, mặc định tab **Top** (giữ đúng thứ tự xếp hạng của X):
+
+```bash
+node src/cli.js search '"LENA CENTRAL DOLCE ITALIA" #CentralDolceItaliaXLena' --count 80
+node src/cli.js search '#CentralDolceItaliaXLena' --latest --count 50   # mới nhất thay vì Top
+node src/cli.js search '#CentralDolceItaliaXLena' --count 80 --ids | clip
+```
+
+Cụm chữ trong ngoặc kép = phải có đúng cụm đó; đặt cạnh hashtag = bài phải có cả hai. 80 tweet ~$0.012.
+
 ## Viết nội dung
 
 Sửa `content/tweets.txt`. Mỗi tweet cách nhau bằng một dòng `---`:

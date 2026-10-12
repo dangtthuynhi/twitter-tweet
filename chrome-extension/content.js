@@ -81,7 +81,8 @@
     nextAt: 0,
     log: [],
     queueSig: '',       // label+so luong da dung de dung hang doi hien tai
-    queueId: '',        // doi moi lan dung lai hang doi, nam trong dau van tay tweet
+    queueId: '',        // dot tweet moi hien tai, nam trong dau van tay tweet
+    queueTweetSig: '',  // label+so luong cua dot tweet moi do
     settings: {
       labels: '',       // text o nhap label, giu qua cac lan nap lai trang
       quantity: 100,    // moi lan dung hang doi thi sinh bao nhieu tweet
@@ -1458,16 +1459,6 @@
     return items;
   }
 
-  /**
-   * Chi dung lai hang doi khi label, so luong hay danh sach link that su doi.
-   * Neu dung lai moi lan goi thi tung phim go — va ca nut Bat dau — deu lam
-   * bo dem tien do nhay ve 0 du dang dang do.
-   *
-   * QUEUE_FORMAT nam trong chu ky de khi doi cach dung hang doi, hang doi cu
-   * con nam trong storage tu dung lai mot lan — goi ca luc nap trang (boot),
-   * khong doi nguoi dung go gi. Khong co no thi label khong doi = sig khong
-   * doi, va bot cu dang tiep hang doi theo kieu cu.
-   */
   /** So viec trong hang doi chua lam (chua co trong lich su). */
   const pendingCount = () => state.queue.filter((i) => !state.posted.includes(fingerprint(i))).length;
 
@@ -1477,7 +1468,8 @@
    *
    * KHONG xoa queueSig: hang doi de trong qua cac lan nap trang, cho toi khi
    * nguoi dung sua o nhap hoac bam Bat dau. Xoa no thi lan nap trang ke tiep
-   * refreshQueue() dung lai ngay, va nut nay nhu chua bam.
+   * refreshQueue() dung lai ngay, va nut nay nhu chua bam. Con queueTweetSig
+   * thi xoa, de lan dung sau tweet moi la mot dot moi.
    */
   function clearQueue() {
     state.queue = [];
@@ -1485,14 +1477,33 @@
     state.pending = null;
     state.running = false;
     state.nextAt = 0;
+    state.queueTweetSig = '';
   }
 
+  /**
+   * Chi dung lai hang doi khi label, so luong hay list tweet that su doi.
+   * Neu dung lai moi lan goi thi tung phim go — va ca nut Bat dau — deu lam
+   * bo dem tien do nhay ve 0 du dang dang do.
+   *
+   * Tweet moi chi sang dot moi (queueId moi) khi label hoac so luong doi.
+   * Them bot tweet trong list — go tay, hay lay tu trang ca nhan giua luc dang
+   * chay — thi tweet moi giu nguyen tien do, khong dang lai tu dau.
+   *
+   * QUEUE_FORMAT nam trong chu ky de khi doi cach dung hang doi, hang doi cu
+   * con nam trong storage tu dung lai mot lan — goi ca luc nap trang (boot),
+   * khong doi nguoi dung go gi. Khong co no thi label khong doi = sig khong
+   * doi, va bot cu dang tiep hang doi theo kieu cu.
+   */
   function refreshQueue() {
     const { labels, quantity, links, repliesPerLink } = state.settings;
     const sig = [QUEUE_FORMAT, labels, quantity, links, repliesPerLink].join('\u0000');
     if (sig === state.queueSig) return false;
     state.queueSig = sig;
-    state.queueId = Date.now().toString(36);
+    const tweetSig = [QUEUE_FORMAT, labels, quantity].join('\u0000');
+    if (tweetSig !== state.queueTweetSig) {
+      state.queueTweetSig = tweetSig;
+      state.queueId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    }
     state.queue = buildQueue(state.queueId);
     state.cursor = 0;
     return true;

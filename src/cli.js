@@ -21,6 +21,7 @@ import { fetchAllReplies, saveReplies, summarize, parseTweetId,
          fetchAllRetweeters, saveRetweeters } from './replies.js';
 import { checkEntry, resolveEntries, saveEntries } from './giveaway.js';
 import { totp, validateSecret } from './totp.js';
+import { parseUserName, fetchLatestTweets, fetchSearchTweets } from './usertweets.js';
 import { parseDuration } from './util.js';
 
 function parseArgs(argv) {
@@ -29,7 +30,7 @@ function parseArgs(argv) {
     const a = argv[i];
     if (!a.startsWith('--')) { opts._.push(a); continue; }
     const key = a.slice(2);
-    if (['dry', 'force', 'help', 'all', 'report', 'only-html'].includes(key)) { opts[key] = true; continue; }
+    if (['dry', 'force', 'help', 'all', 'report', 'only-html', 'replies', 'ids', 'latest'].includes(key)) { opts[key] = true; continue; }
     const val = argv[++i];
     if (key === 'media') opts.media.push(val);
     else opts[key] = val;
@@ -57,6 +58,14 @@ Lenh:
                          [--max N] tran so reply (mac dinh 500)
                          [--format json|csv|both]
   retweeters <link|id>   Lay danh sach nguoi da retweet 1 bai
+  tweets <user>          Lay tweet gan nhat cua 1 nguoi dung, in id de dan vao o
+                         "List tweet" cua extension (bo bai repost, bo reply)
+                         [--count N] so tweet (mac dinh 20)  [--replies] lay ca reply
+                         [--ids] chi in id, vd: tweets LenaMiu_CH3 --ids | clip
+  search <truy van>      Lay tweet Top theo cu phap tim kiem cua X, in id de dan
+                         vd: search '"LENA CENTRAL DOLCE ITALIA" #CentralDolceItaliaXLena'
+                         [--count N] (mac dinh 20)  [--latest] moi nhat thay vi Top
+                         [--ids] chi in id
   giveaway <link|id>     Loc entry hop le theo the le GA
                          [--min N] [--max N] so cho phep (mac dinh 0-2511)
                          [--msg N] do dai loi nhan toi thieu (15)
@@ -334,6 +343,83 @@ async function main() {
         for (const u of sorted.slice(0, 5)) log.plain(`      @${u.userName} — ${(u.followers || 0).toLocaleString()} follower`);
       }
       log.plain(`\n  Da luu: ${files.map((f) => f.replace(process.cwd() + '/', '')).join(', ')}`);
+      break;
+    }
+    case 'tweets': {
+      assertConfig({ needAccount: false });
+      const user = parseUserName(opts._[0]);
+      if (!user) {
+        log.error('Thieu hoac sai ten nguoi dung.');
+        log.plain('  Vi du: node src/cli.js tweets LenaMiu_CH3');
+        process.exitCode = 1;
+        break;
+      }
+      const count = Math.min(100, Math.max(1, Number(opts.count) || 20));
+      const includeReplies = Boolean(opts.replies);
+      // --ids: chi in id, moi dong mot cai — de noi ong sang `clip` hay file
+      const quiet = Boolean(opts.ids);
+      if (!quiet) log.info(`Lay ${count} tweet gan nhat cua @${user}${includeReplies ? ' (ca reply)' : ''}...`);
+      const { tweets, cost } = await fetchLatestTweets(user, {
+        count,
+        includeReplies,
+        onPage: quiet ? undefined
+          : ({ page, got, kept }) => log.info(`  trang ${page}: API tra ${got} tweet, giu ${kept}`),
+      });
+      if (quiet) {
+        for (const t of tweets) console.log(String(t.id));
+        break;
+      }
+      if (!tweets.length) {
+        log.warn(`Khong lay duoc tweet nao cua @${user} (sai ten, tai khoan khoa, hoac chua co bai nao).`);
+        break;
+      }
+      log.plain(`\n=== ${tweets.length} tweet gan nhat cua @${user} ===`);
+      for (const t of tweets) {
+        const when = t.createdAt ? new Date(t.createdAt).toLocaleString('sv').slice(0, 16) : '';
+        log.plain(`  ${t.id}  ${when}  ${(t.text || '').replace(/\s+/g, ' ').slice(0, 60)}`);
+      }
+      log.plain('\nDan vao o "List tweet" cua extension:\n');
+      log.plain(tweets.map((t) => String(t.id)).join('\n'));
+      log.plain(`\nChi phi: ~$${cost.toFixed(5)}`);
+      break;
+    }
+    case 'search': {
+      assertConfig({ needAccount: false });
+      const query = opts._.join(' ').trim();
+      if (!query) {
+        log.error('Thieu truy van tim kiem.');
+        log.plain(`  Vi du: node src/cli.js search '"LENA CENTRAL DOLCE ITALIA" #CentralDolceItaliaXLena' --count 80`);
+        process.exitCode = 1;
+        break;
+      }
+      const count = Math.min(500, Math.max(1, Number(opts.count) || 20));
+      const queryType = opts.latest ? 'Latest' : 'Top';
+      const quiet = Boolean(opts.ids);
+      if (!quiet) log.info(`Tim ${count} tweet ${queryType}: ${query}`);
+      const { tweets, cost } = await fetchSearchTweets(query, {
+        count,
+        queryType,
+        onPage: quiet ? undefined
+          : ({ page, got, kept }) => log.info(`  trang ${page}: API tra ${got} tweet, da co ${kept}`),
+      });
+      if (quiet) {
+        for (const t of tweets) console.log(String(t.id));
+        break;
+      }
+      if (!tweets.length) {
+        log.warn('Khong tim thay tweet nao. Thu bo dau ngoac kep, hoac chi tim theo hashtag.');
+        break;
+      }
+      log.plain(`\n=== ${tweets.length} tweet ${queryType} ===`);
+      for (const t of tweets) {
+        const who = `@${t.author?.userName || '?'}`.padEnd(18);
+        const stats = `${t.likeCount || 0}♥ ${t.retweetCount || 0}⟳`.padEnd(10);
+        log.plain(`  ${t.id}  ${who} ${stats} ${(t.text || '').replace(/\s+/g, ' ').slice(0, 50)}`);
+      }
+      if (tweets.length < count) log.warn(`Chi tim duoc ${tweets.length}/${count} tweet — X khong tra them.`);
+      log.plain('\nDan vao o "List tweet" cua extension:\n');
+      log.plain(tweets.map((t) => String(t.id)).join('\n'));
+      log.plain(`\nChi phi: ~$${cost.toFixed(5)}`);
       break;
     }
     case 'giveaway': {
