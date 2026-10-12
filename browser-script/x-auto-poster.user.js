@@ -75,7 +75,7 @@
     postedContent: [],   // [{hashtag, contentIndex}, ...] de chong trung content
     perDay: {},         // { '2026-09-23': 5 }
     pending: null,      // viec dang lam do dang qua lan nap trang
-    retryWhenVisible: false,  // reply/retweet hong vi tab an, doi tab hien lai
+    waitVisible: [],    // loai viec ('reply'/'retweet') hong vi tab an, doi tab hien lai
     nextAt: 0,
     log: [],
     queueSig: '',       // label+so luong da dung de dung hang doi hien tai
@@ -722,7 +722,9 @@
    */
   async function composerScope(timeout = 20000) {
     const deadline = Date.now() + timeout * paceFactor();
-    const onComposePage = () => /^\/compose\//.test(location.pathname);
+    // Trang soan bai: /compose/post, va o soan cua intent (/intent/post) ma
+    // replyViaCompose() mo ra
+    const onComposePage = () => /^\/(compose|intent)\//.test(location.pathname);
     // Kiem truoc, het han moi thoi: xem clickWhenEnabled()
     for (;;) {
       const dialog = [...document.querySelectorAll('[role="dialog"]')]
@@ -840,6 +842,90 @@
       throw e;
     }
     if (scope !== document && scope.isConnected) await closeComposer();
+  }
+
+  // Chu goi y trong o soan bai khi dang tra loi ("Post your reply", "Dang cau
+  // tra loi cua ban"...), cac ngon ngu hay dung tren X
+  const REPLY_HINT_RE = /reply|trả lời|ตอบกลับ|antwort|respuesta|réponse|返信|回复|답글/i;
+
+  /**
+   * Reply qua o soan bai cua X (x.com/intent/post?in_reply_to=<id>) — duong
+   * dung khi tab dang an.
+   *
+   * Tab an thi X khong ve trang bai viet, nen doReply() khong co nut reply cua
+   * bai de bam. O soan bai thi van hien (dang bai moi luc tab an van chay), va
+   * intent mo dung o do, gan san bai can tra loi.
+   *
+   * Truoc khi go phai thay dau hieu o nay dang TRA LOI dung bai: link toi bai
+   * do trong khung, hoac chu goi y kieu "Post your reply". Khong thay thi bo
+   * — dang ra la thanh mot bai moi, khong phai reply.
+   */
+  async function replyViaCompose(id, text) {
+    const scope = await composerScope();
+    const root = scope === document ? (document.querySelector('main') || document) : scope;
+    const replying = () => root.querySelector(`a[href*="/status/${id}"]`) ||
+      REPLY_HINT_RE.test(root.querySelector('.public-DraftEditorPlaceholder-inner')?.textContent || '');
+    if (!(await until(replying, 8000, 300))) {
+      throw new Error(`O soan bai khong hien la dang tra loi bai ${id}, bo qua de khong dang nham thanh bai moi`);
+    }
+    await doPostTweet(text, scope);
+    if (scope !== document && scope.isConnected) await closeComposer();
+  }
+
+  // Chu tren nut cua hop thoai retweet, cac ngon ngu hay dung tren X. Nut
+  // retweet phai KHOP NGUYEN chu; nut go retweet ("Undo repost") phai co ca
+  // tu "go/huy" lan tu "repost" — rieng "ยกเลิก" (Cancel tieng Thai) thi khong.
+  const REPOST_RE = /^(repost|retweet|đăng lại|รีโพสต์|retweeten|reposter|repostear|リポスト|转帖|재게시)$/i;
+  const UNDO_REPOST_RE = /(undo|hoàn tác|huỷ|hủy|ยกเลิก|rückgängig|deshacer|annuler|取り消|撤销|취소).*(repost|retweet|đăng lại|รีโพสต์|リポスト|转帖|재게시)/i;
+  const CANCEL_RE = /^(cancel|hủy|huỷ|ยกเลิก|abbrechen|cancelar|annuler|キャンセル|取消|취소)$/i;
+
+  /**
+   * Retweet qua hop thoai retweet cua X (x.com/intent/retweet?tweet_id=<id>) —
+   * duong dung khi tab dang an, vi doRetweet() can trang bai viet hien ra.
+   *
+   * Chi bam khi nut DUNG la "Repost". Bai da retweet roi thi hop thoai co the
+   * hien "Undo repost" — bam nham la go retweet, nen gap nut do thi bam Huy
+   * va bao "da retweet tu truoc". Khong nhan ra nut nao thi khong bam gi.
+   * @returns {boolean} false neu bai da retweet tu truoc
+   */
+  async function retweetViaIntent(id) {
+    // Hop thoai xac nhan, hoac menu nho nhu menu "Repost / Quote" quen thuoc:
+    // nhan theo testid cua X truoc, theo chu tren nut sau
+    const clickables = (root) => [...root.querySelectorAll('[role="button"], button, [role="menuitem"]')];
+    const textOf = (b) => (b.innerText || '').trim();
+    const undoIn = (root) => root.querySelector('[data-testid="unretweetConfirm"]') ||
+      clickables(root).find((b) => UNDO_REPOST_RE.test(textOf(b)));
+    const repostIn = (root) => root.querySelector('[data-testid="retweetConfirm"]') ||
+      clickables(root).find((b) => REPOST_RE.test(textOf(b)));
+    const find = () => [...document.querySelectorAll('[role="dialog"], [role="menu"]')]
+      .find((d) => undoIn(d) || repostIn(d));
+    if (!(await until(find, 15000, 300))) {
+      throw new Error(`Khong thay hop thoai retweet cua bai ${id}`);
+    }
+    const sheet = find();
+    // Kiem nut go retweet TRUOC: co no tuc la bai da retweet roi
+    if (undoIn(sheet)) {
+      const cancel = clickables(sheet).find((b) => CANCEL_RE.test(textOf(b)));
+      if (cancel) {
+        cancel.click();
+      } else {
+        // Menu khong co nut Huy (dismissOverlays chi don hop thoai): bam Esc
+        // nhu nguoi dung, de menu khong nam lai che viec sau
+        for (const t of ['keydown', 'keyup']) {
+          (document.activeElement || document.body).dispatchEvent(
+            new KeyboardEvent(t, { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
+        }
+      }
+      await until(() => !sheet.isConnected, 3000);
+      return false;
+    }
+    const btn = repostIn(sheet);
+    btn.click();
+    if (!(await until(() => !btn.isConnected, 8000))) {
+      throw new Error(`Da bam retweet nhung hop thoai khong dong (bai ${id})`);
+    }
+    await sleep(1000);
+    return true;
   }
 
   /**
@@ -968,9 +1054,10 @@
         await doPostTweet(job.text, await composerScope());
         addLog(`Da dang: ${job.text.slice(0, 50)}`, 'ok');
       } else if (job.type === 'reply') {
-        await doReply(job.id, job.text);
+        if (job.via === 'compose') await replyViaCompose(job.id, job.text);
+        else await doReply(job.id, job.text);
         addLog(`Da reply ${job.id}: ${job.text.slice(0, 40)}`, 'ok');
-      } else if (await doRetweet(job.id)) {
+      } else if (await (job.via === 'intent' ? retweetViaIntent(job.id) : doRetweet(job.id))) {
         addLog(`Da retweet: ${job.id}`, 'ok');
       } else {
         skipJob(job, `Bai ${job.id} da retweet tu truoc, bo qua.`);
@@ -1005,16 +1092,16 @@
   }
 
   /**
-   * Viec ke tiep. `onlyTweets`: chi lay tweet moi, de reply/retweet dang doi
-   * tab hien lai (holdUntilVisible) nam cho; con lai toan reply/retweet thi
-   * tra null — van con viec, khong phai het hang doi.
+   * Viec ke tiep. `skip`: cac loai viec dang doi tab hien lai
+   * (holdUntilVisible) — nam cho, lay viec khac; con lai toan loai do thi tra
+   * null — van con viec, khong phai het hang doi.
    */
-  function pickNext({ onlyTweets = false } = {}) {
+  function pickNext({ skip = [] } = {}) {
     const pending = state.queue
       .map((item, index) => ({ ...item, index }))
       .filter((item) => !state.posted.includes(fingerprint(item)));
 
-    const usable = onlyTweets ? pending.filter((p) => p.type === 'tweet') : pending;
+    const usable = pending.filter((p) => !skip.includes(p.type));
     // List tweet luon lam truoc tweet moi, ke ca reply/retweet bi giu lai luc
     // tab an ma cursor da di qua (tweet moi van dang trong luc do)
     const list = usable.find((p) => p.type !== 'tweet');
@@ -1092,16 +1179,16 @@
     }
 
     // Reply/retweet dang doi tab X hien lai (xem holdUntilVisible)
-    if (state.retryWhenVisible && !document.hidden) {
-      state.retryWhenVisible = false;
+    const waiting = state.waitVisible || [];
+    if (waiting.length && !document.hidden) {
+      state.waitVisible = [];
       save(state);
-      addLog('Tab X da hien lai, lam tiep reply/retweet.', 'ok');
+      addLog(`Tab X da hien lai, lam tiep ${waiting.join('/')}.`, 'ok');
     }
-    const waiting = Boolean(state.retryWhenVisible);
 
-    const job = pickNext({ onlyTweets: waiting });
+    const job = pickNext({ skip: state.waitVisible || [] });
     if (!job) {
-      if (waiting) return;   // chi con reply/retweet: doi tab hien lai
+      if ((state.waitVisible || []).length) return;   // chi con viec dang doi tab hien lai
       addLog('Het bai trong hang doi.', 'warn');
       state.running = false;
       save(state);
@@ -1139,6 +1226,24 @@
           finishJob(job, `Da dang: ${job.text.split('\n')[0].slice(0, 50)}`);
           return;
         }
+      } else if (job.type === 'reply' && document.hidden) {
+        // Tab an: X khong ve trang bai viet, khong co nut reply nao de bam.
+        // Di qua o soan bai cua X, gan san bai can tra loi — replyViaCompose().
+        addLog(`Tab X dang an: reply bai ${job.id} qua o soan bai cua X...`);
+        state.pending = { ...job, via: 'compose' };
+        save(state);
+        await clearComposerIfAny();   // khong thi dinh canh bao "unsaved changes"
+        location.href = `https://x.com/intent/post?in_reply_to=${job.id}`;
+        return;
+      } else if (job.type === 'retweet' && document.hidden) {
+        // Tab an: tuong tu reply, di qua hop thoai retweet cua X —
+        // retweetViaIntent()
+        addLog(`Tab X dang an: retweet bai ${job.id} qua hop thoai retweet cua X...`);
+        state.pending = { ...job, via: 'intent' };
+        save(state);
+        await clearComposerIfAny();   // khong thi dinh canh bao "unsaved changes"
+        location.href = `https://x.com/intent/retweet?tweet_id=${job.id}`;
+        return;
       } else {
         addLog(`Dang mo bai ${job.id} de ${job.type === 'reply' ? 'reply' : 'retweet'}...`);
         if (await openTweetInPlace(job.id)) {
@@ -1219,19 +1324,20 @@
    * Reply/retweet hong luc tab X dang an thi KHONG bo viec do.
    *
    * Tab an (chuyen tab khac, thu nho cua so) thi Chrome ngung ve trang va don
-   * hen gio lai. Reply/retweet can trang bai viet hien ra de bam dung nut cua
-   * bai do — hong luc nay la do tab, khong phai do bai. Danh dau "da lam" nhu
-   * loi thuong thi mat han reply do, va 5 lan nhu vay la bot tu dung.
+   * hen gio lai. Luc tab an, reply di qua o soan bai (replyViaCompose) va
+   * retweet qua hop thoai retweet cua X (retweetViaIntent), nhung van co the
+   * hong. Hong luc nay la do tab, khong phai do bai: danh dau "da lam" nhu loi
+   * thuong thi mat han viec do, va 5 lan nhu vay la bot tu dung.
    *
-   * Nen giu lai, khong tinh la loi, va tam hoan reply/retweet (tweet moi van
-   * dang) toi khi tab hien lai — xem runTick(). Giu lai van an toan: cac buoc
-   * nem loi deu nam TRUOC luc bam gui, nen lam lai khong ra reply doi; retweet
-   * lam lai thi gap nut "unretweet" va bo qua.
+   * Nen giu lai, khong tinh la loi, va tam hoan RIENG loai viec do toi khi tab
+   * hien lai — cac viec khac van chay, xem runTick(). Giu lai van an toan: cac
+   * buoc nem loi deu nam TRUOC luc bam gui, nen lam lai khong ra reply doi;
+   * retweet lam lai thi gap nut "unretweet" va bo qua.
    * @returns {boolean} da giu lai — nguoi goi khong markDone, khong dem loi
    */
   function holdUntilVisible(job) {
     if (!document.hidden || (job.type !== 'reply' && job.type !== 'retweet')) return false;
-    state.retryWhenVisible = true;
+    state.waitVisible = [...new Set([...(state.waitVisible || []), job.type])];
     addLog(`Tab X dang an nen chua ${job.type} duoc bai ${job.id}. Giu lai, se lam khi mo tab X len.`, 'warn');
     return true;
   }
@@ -1663,8 +1769,8 @@
     $('xap-status').innerHTML = state.running
       ? `<b class="xap-on">● Dang chay</b> — bai ke tiep sau <b>${mm}:${String(ss).padStart(2, '0')}</b><br>
          Da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai` +
-        (state.retryWhenVisible
-          ? '<br><span class="xap-warn">⏸ Reply/retweet dang doi tab X hien lai</span>' : '')
+        ((state.waitVisible || []).length
+          ? `<br><span class="xap-warn">⏸ ${state.waitVisible.join('/')} dang doi tab X hien lai</span>` : '')
       : !state.queue.length
         ? `<b class="xap-dim2">○ Hang doi trong</b> — bam Bat dau de dung tu o nhap · hom nay <b>${countToday()}</b> bai`
         : `<b class="xap-dim2">○ Dang dung</b> — da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`;

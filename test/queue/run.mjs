@@ -215,7 +215,7 @@ console.log('\n6. Nut Xoa hang doi');
 console.log('\n7. Tab X bi an (chay nen)');
 {
   const env = (hidden) => {
-    const state = { queue: [], posted: [], cursor: 0, retryWhenVisible: false, settings: { loop: true } };
+    const state = { queue: [], posted: [], cursor: 0, waitVisible: [], settings: { loop: true } };
     const logs = [];
     const code = [
       grabConst('sleep'), grabFn('clickWhenEnabled'), grabConst('fingerprint'),
@@ -239,20 +239,22 @@ console.log('\n7. Tab X bi an (chay nen)');
   check('nut van tat thi bao loi, khong bam', threw && clicked === 1, { threw, clicked });
 
   const reply = { type: 'reply', id: '2103095712292696459', n: 0 };
-  check('reply hong luc tab an: giu lai', t.holdUntilVisible(reply) === true && t.state.retryWhenVisible, t.state);
+  check('retweet hong luc tab an: giu lai, chi chan rieng retweet',
+    t.holdUntilVisible({ type: 'retweet', id: '1' }) === true && JSON.stringify(t.state.waitVisible) === '["retweet"]', t.state);
   check('tweet moi hong luc tab an: khong giu (loi thuong)', t.holdUntilVisible({ type: 'tweet' }) === false, null);
   const shown = env(false);
-  check('tab dang hien: reply hong la loi thuong', shown.holdUntilVisible(reply) === false && !shown.state.retryWhenVisible, null);
+  check('tab dang hien: reply hong la loi thuong', shown.holdUntilVisible(reply) === false && !shown.state.waitVisible.length, null);
 
   // Hang doi: reply, retweet theo list roi 2 tweet moi
   const s = t.state;
   s.queue = [reply, { type: 'retweet', id: reply.id },
     { type: 'tweet', qid: 'q', slot: 0 }, { type: 'tweet', qid: 'q', slot: 1 }];
-  check('dang doi tab: chi lay tweet moi', t.pickNext({ onlyTweets: true })?.type === 'tweet', t.pickNext({ onlyTweets: true }));
+  check('retweet dang doi tab: reply van chay (qua o soan bai)', t.pickNext({ skip: ['retweet'] })?.type === 'reply', t.pickNext({ skip: ['retweet'] }));
+  check('ca reply lan retweet dang doi: chi lay tweet moi', t.pickNext({ skip: ['reply', 'retweet'] })?.type === 'tweet', t.pickNext({ skip: ['reply', 'retweet'] }));
   s.posted.push('tw:q:0', 'tw:q:1');
   s.cursor = 4;
   check('dang doi tab ma chi con reply/retweet: tra null, KHONG xoa lich su du bat lap lai',
-    t.pickNext({ onlyTweets: true }) === null && s.posted.length === 2, s.posted);
+    t.pickNext({ skip: ['reply', 'retweet'] }) === null && s.posted.length === 2, s.posted);
   const next = t.pickNext();
   check('tab hien lai: lam reply bi giu truoc, du cursor da di qua', next?.type === 'reply' && next.index === 0, next);
 }

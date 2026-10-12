@@ -24,9 +24,12 @@ ${[
   grabFn('answerSaveSheet'), grabFn('discardDraft'), grabFn('closeComposer'),
   grabFn('doPostTweet'), grabFn('findArticle'), grabFn('waitArticle'),
   grabConst('onStatusPage'), grabFn('doRetweet'), grabFn('doReply'), grabFn('parseLinks'),
+  grabFn('composerScope'), grabConst('REPLY_HINT_RE'), grabFn('replyViaCompose'),
+  grabFn('dismissOverlays'), grabConst('REPOST_RE'), grabConst('UNDO_REPOST_RE'),
+  grabConst('CANCEL_RE'), grabFn('retweetViaIntent'),
 ].join('\n\n')}
 
-  return { findArticle, doRetweet, doReply, parseLinks };
+  return { findArticle, doRetweet, doReply, parseLinks, replyViaCompose, retweetViaIntent };
 })();
 `;
 
@@ -116,8 +119,74 @@ console.log('\n4. Nut gui khong bat len (X chan) — phai vut ban nhap, khong lu
   await page.close();
 }
 
-// --- 5. doc danh sach link ---------------------------------------------------
-console.log('\n5. Doc o danh sach link');
+// --- 5. reply qua o soan bai (tab an) ----------------------------------------
+console.log('\n5. Reply qua o soan bai — duong dung khi tab X an');
+{
+  const page = await fresh();
+  await page.evaluate(() => window.__openCompose({ replyTo: '222', placeholder: 'Post your reply' }));
+  const r = await call(page, 'replyViaCompose', '222', REPLY);
+  const replies = await read(page, () => window.__replies);
+  check('o soan kem bai 222: gui dung mot reply, dung noi dung', r.ok && replies.length === 1 &&
+    replies[0].id === '222' && replies[0].text === REPLY, [r, replies]);
+  check('modal da dong', await read(page, () => !document.querySelector('[role="dialog"]')), null);
+
+  await page.evaluate(() => window.__openCompose({ placeholder: 'Đăng câu trả lời của bạn' }));
+  const r2 = await call(page, 'replyViaCompose', '333', REPLY);
+  check('chi co chu goi y tieng Viet "tra loi": van nhan la dang reply', r2.ok, r2);
+
+  await page.evaluate(() => window.__openCompose({ placeholder: "What's happening?" }));
+  const before = await read(page, () => window.__replies.length);
+  const r3 = await call(page, 'replyViaCompose', '444', REPLY);
+  check('o soan bai MOI (khong dau hieu tra loi): bao loi, khong dang nham thanh bai moi',
+    !r3.ok && /khong hien la dang tra loi/.test(r3.err) &&
+      (await read(page, () => window.__replies.length)) === before, r3);
+  await page.close();
+}
+
+// --- 6. retweet qua hop thoai (tab an) ----------------------------------------
+console.log('\n6. Retweet qua hop thoai retweet — duong dung khi tab X an');
+{
+  const page = await fresh();
+  const run = async (id, kind) => {
+    await page.evaluate(([i, k]) => window.__openRetweetSheet(i, k), [id, kind]);
+    return call(page, 'retweetViaIntent', id);
+  };
+  const state = () => read(page, () => ({
+    rt: window.__retweeted.slice(), undone: window.__undone.slice(),
+    open: !!document.querySelector('[role="dialog"], [role="menu"]'),
+  }));
+
+  let r = await run('101', 'sheet-en');
+  let s = await state();
+  check('hop thoai "Repost": bam, bao da retweet', r.ok && r.value === true && s.rt.includes('101') && !s.open, [r, s]);
+
+  r = await run('102', 'sheet-th');
+  s = await state();
+  check('tieng Thai "รีโพสต์ / ยกเลิก": van retweet (khong nham "ยกเลิก" la go retweet)',
+    r.ok && r.value === true && s.rt.includes('102'), [r, s]);
+
+  r = await run('103', 'menu-testid');
+  s = await state();
+  check('menu co testid retweetConfirm: bam dung muc Repost', r.ok && r.value === true && s.rt.includes('103'), [r, s]);
+
+  r = await run('104', 'undo-en');
+  s = await state();
+  check('hop thoai "Undo repost": KHONG bam, bam Huy, bao da retweet tu truoc',
+    r.ok && r.value === false && !s.undone.length && !s.rt.includes('104') && !s.open, [r, s]);
+
+  r = await run('105', 'menu-undo');
+  s = await state();
+  check('menu unretweetConfirm: KHONG go retweet, dong menu (Esc)', r.ok && r.value === false && !s.undone.length && !s.open, [r, s]);
+
+  r = await run('106', 'unknown');
+  s = await state();
+  check('khong nhan ra nut nao: bao loi, khong bam gi',
+    !r.ok && /Khong thay hop thoai retweet/.test(r.err) && !s.rt.includes('106'), [r, s]);
+  await page.close();
+}
+
+// --- 7. doc danh sach link ---------------------------------------------------
+console.log('\n7. Doc o danh sach link');
 {
   const page = await fresh();
   const raw = [

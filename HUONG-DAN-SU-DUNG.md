@@ -161,7 +161,7 @@ Cần biết:
 - **Bài đã retweet từ trước** thì bỏ qua, không tính là lỗi, chạy sang việc kế tiếp ngay.
 - **Tweet đã làm rồi thì không làm lại**, kể cả khi bạn sửa nhãn hay dán lại cùng id. Muốn reply thêm thì tăng số lần reply (ví dụ 1 → 2), công cụ chỉ làm phần còn thiếu. Muốn làm lại từ đầu thì bấm **"Xoá lịch sử"**.
 - **Bài khoá reply** (chủ bài chỉ cho một số người trả lời) sẽ báo lỗi ở phần reply, nhưng vẫn retweet.
-- **Tab X bị ẩn** (chuyển sang tab khác, thu nhỏ cửa sổ) thì reply/retweet thường không làm được. Công cụ giữ các việc đó lại, không bỏ, dòng giữa bảng báo `⏸ Reply/retweet đang đợi tab X hiện lại`. Bài mới vẫn đăng bình thường; mở tab X lên là công cụ làm tiếp. Xem thêm phần "Khi gặp trục trặc".
+- **Tab X bị ẩn** (chuyển sang tab khác, thu nhỏ cửa sổ): công cụ đi đường khác, không cần mở trang bài viết — reply mở thẳng ô soạn bài ở chế độ trả lời bài đó, retweet mở hộp thoại retweet của X. Retweet chỉ bấm khi nút đúng là "Repost / Đăng lại"; bài đã retweet rồi (hộp thoại hiện "Undo repost") thì bỏ qua, không bao giờ gỡ retweet. Việc nào vẫn hỏng lúc tab ẩn thì được giữ lại, dòng giữa bảng báo `⏸ … đang đợi tab X hiện lại`, mở tab X lên là làm tiếp. Xem thêm phần "Khi gặp trục trặc".
 - **Reply hàng loạt cùng một kiểu dễ bị X hạn chế** hơn đăng bài thường. Mỗi tweet nên reply ít lần, và giữ khoảng cách vài phút.
 
 ---
@@ -184,7 +184,7 @@ Cần biết:
 
 **Bấm Bắt đầu rồi mà mãi không đăng** — Nhìn số đếm ngược giữa bảng. Đang đếm thì cứ để yên.
 
-**Để chạy nền thì không reply được** — Khi tab X bị ẩn, Chrome ngừng vẽ trang và làm chậm mọi nhịp chờ. Đăng bài mới chỉ cần ô soạn bài nên vẫn chạy được, còn reply/retweet phải mở trang bài viết ra để bấm đúng nút của bài đó — trang không được vẽ thì không có nút để bấm. Công cụ sẽ giữ các reply/retweet đó lại và làm khi tab hiện lên. Muốn reply chạy liên tục:
+**Chạy nền chậm, hoặc báo "đang đợi tab X hiện lại"** — Khi tab X bị ẩn, Chrome ngừng vẽ trang và làm chậm mọi nhịp chờ. Công cụ đã đổi sang đường không cần vẽ trang bài viết (ô soạn bài cho reply, hộp thoại retweet cho retweet), nhưng mỗi bài vẫn có thể mất vài phút, và việc nào hỏng thì phải đợi tab hiện lại. Muốn chạy nhanh và chắc nhất:
 
 - Mở X ở **một cửa sổ Chrome riêng**, để tab X là tab đang mở của cửa sổ đó.
 - **Đừng thu nhỏ** cửa sổ đó xuống thanh taskbar. Kéo nhỏ lại, để ở một góc màn hình là được.

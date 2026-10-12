@@ -52,7 +52,7 @@
           window.__text = es.getCurrentContent().getPlainText('\n');
           this.setState({ editorState: es });
         },
-        placeholder: 'Post your reply',
+        placeholder: this.props.placeholder || 'Post your reply',
       });
     }
   }
@@ -127,6 +127,54 @@
         break;
       }
     }
+  });
+  // O soan bai nhu x.com/intent/post?in_reply_to=<id> mo ra (khong qua trang
+  // bai viet): `replyTo` = kem khung bai dang tra loi; `placeholder` = chu goi y.
+  window.__openCompose = ({ replyTo = null, placeholder = "What's happening?" } = {}) => {
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    if (replyTo) dialog.dataset.for = replyTo;
+    dialog.innerHTML = `<button data-testid="app-bar-close">x</button>
+      ${replyTo ? articleHtml(replyTo) : ''}
+      <div class="editor"></div>
+      <button data-testid="tweetButton">Post</button>`;
+    document.body.appendChild(dialog);
+    const host = dialog.querySelector('.editor');
+    ReactDOM.render(React.createElement(Composer, { host, placeholder }), host);
+  };
+  // Hop thoai nhu x.com/intent/retweet?tweet_id=<id> mo ra. Moi kieu la mot
+  // cach X co the ve no; bam nut "go retweet" la loi nang, ghi vao __undone.
+  window.__undone = [];
+  window.__openRetweetSheet = (id, kind) => {
+    const KINDS = {
+      'sheet-en': { role: 'dialog', items: [['button', '', 'Repost', 'rt'], ['button', '', 'Cancel', 'cancel']] },
+      'sheet-th': { role: 'dialog', items: [['button', '', 'รีโพสต์', 'rt'], ['button', '', 'ยกเลิก', 'cancel']] },
+      'menu-testid': { role: 'menu', items: [['div', 'retweetConfirm', 'Repost', 'rt'], ['div', '', 'Quote', 'none']] },
+      'undo-en': { role: 'dialog', items: [['button', '', 'Undo repost', 'undo'], ['button', '', 'Cancel', 'cancel']] },
+      'menu-undo': { role: 'menu', items: [['div', 'unretweetConfirm', 'Undo repost', 'undo'], ['div', '', 'Quote', 'none']] },
+      unknown: { role: 'dialog', items: [['button', '', 'OK', 'none']] },
+    };
+    const k = KINDS[kind];
+    const box = document.createElement('div');
+    box.setAttribute('role', k.role);
+    for (const [tag, testid, label, act] of k.items) {
+      const b = document.createElement(tag);
+      if (tag === 'div') b.setAttribute('role', 'menuitem');
+      if (testid) b.dataset.testid = testid;
+      b.textContent = label;
+      b.onclick = (e) => {
+        e.stopPropagation();
+        if (act === 'rt') window.__retweeted.push(id);
+        if (act === 'undo') window.__undone.push(id);
+        if (act !== 'none') box.remove();
+      };
+      box.appendChild(b);
+    }
+    document.body.appendChild(box);
+  };
+  // Menu cua X dong khi bam Esc
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') document.querySelectorAll('[role="menu"]').forEach((m) => m.remove());
   });
   window.__ready = true;
 </script>
