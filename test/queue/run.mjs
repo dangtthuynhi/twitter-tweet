@@ -211,8 +211,54 @@ console.log('\n6. Nut Xoa hang doi');
   check('link da reply roi van tinh la xong, khong reply lai', t.pendingCount() === 3, t.pendingCount());
 }
 
-// --- 7. kho content that ----------------------------------------------------
-console.log('\n7. Kho content-lenamiu.json that');
+// --- 7. tab X bi an (chay nen) ------------------------------------------------
+console.log('\n7. Tab X bi an (chay nen)');
+{
+  const env = (hidden) => {
+    const state = { queue: [], posted: [], cursor: 0, retryWhenVisible: false, settings: { loop: true } };
+    const logs = [];
+    const code = [
+      grabConst('sleep'), grabFn('clickWhenEnabled'), grabConst('fingerprint'),
+      grabFn('pickNext'), grabFn('holdUntilVisible'),
+      'return { clickWhenEnabled, fingerprint, pickNext, holdUntilVisible };',
+    ].join('\n');
+    const fns = new Function('state', 'document', 'addLog', 'save', code)(
+      state, { hidden }, (m, k) => logs.push([k, m]), () => {});
+    return { state, logs, ...fns };
+  };
+
+  // Hen gio bi Chrome don: da qua han ngay tu lan nhin dau tien (timeout 0)
+  const t = env(true);
+  let clicked = 0;
+  const ready = { getAttribute: () => null, disabled: false, click: () => clicked++ };
+  await t.clickWhenEnabled(ready, 0);
+  check('qua han roi van nhin nut mot lan, nut bat thi bam', clicked === 1, clicked);
+  const off = { getAttribute: () => 'true', disabled: false, click: () => clicked++ };
+  let threw = false;
+  try { await t.clickWhenEnabled(off, 0); } catch { threw = true; }
+  check('nut van tat thi bao loi, khong bam', threw && clicked === 1, { threw, clicked });
+
+  const reply = { type: 'reply', id: '2103095712292696459', n: 0 };
+  check('reply hong luc tab an: giu lai', t.holdUntilVisible(reply) === true && t.state.retryWhenVisible, t.state);
+  check('tweet moi hong luc tab an: khong giu (loi thuong)', t.holdUntilVisible({ type: 'tweet' }) === false, null);
+  const shown = env(false);
+  check('tab dang hien: reply hong la loi thuong', shown.holdUntilVisible(reply) === false && !shown.state.retryWhenVisible, null);
+
+  // Hang doi: reply, retweet theo list roi 2 tweet moi
+  const s = t.state;
+  s.queue = [reply, { type: 'retweet', id: reply.id },
+    { type: 'tweet', qid: 'q', slot: 0 }, { type: 'tweet', qid: 'q', slot: 1 }];
+  check('dang doi tab: chi lay tweet moi', t.pickNext({ onlyTweets: true })?.type === 'tweet', t.pickNext({ onlyTweets: true }));
+  s.posted.push('tw:q:0', 'tw:q:1');
+  s.cursor = 4;
+  check('dang doi tab ma chi con reply/retweet: tra null, KHONG xoa lich su du bat lap lai',
+    t.pickNext({ onlyTweets: true }) === null && s.posted.length === 2, s.posted);
+  const next = t.pickNext();
+  check('tab hien lai: lam reply bi giu truoc, du cursor da di qua', next?.type === 'reply' && next.index === 0, next);
+}
+
+// --- 8. kho content that ----------------------------------------------------
+console.log('\n8. Kho content-lenamiu.json that');
 {
   const { default: data } = await import('../../content-lenamiu.json', { with: { type: 'json' } });
   const t = load({ contents: data.contents });

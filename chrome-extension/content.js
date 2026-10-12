@@ -78,6 +78,7 @@
     postedContent: [],   // [{hashtag, contentIndex}, ...] de chong trung content
     perDay: {},         // { '2026-09-23': 5 }
     pending: null,      // viec dang lam do dang qua lan nap trang
+    retryWhenVisible: false,  // reply/retweet hong vi tab an, doi tab hien lai
     nextAt: 0,
     log: [],
     queueSig: '',       // label+so luong da dung de dung hang doi hien tai
@@ -689,15 +690,23 @@
     }
   }
 
-  /** Bam mot nut, doi no het disabled truoc da. */
+  /**
+   * Bam mot nut, doi no het disabled truoc da.
+   *
+   * Kiem TRUOC, het han moi thoi — khong dung `while (chua het han)`. Tab X
+   * bi an thi Chrome don hen gio: mot nhip sleep(300) co the thanh ca phut.
+   * Ngu day thi da qua han, va vong while thoat ra bao "khong bam duoc" ma
+   * khong nhin nut lan nao nua, du luc do nut da bat tu lau.
+   */
   async function clickWhenEnabled(elOrSelector, timeout = 12000, root = document) {
     const deadline = Date.now() + timeout;
-    while (Date.now() < deadline) {
+    for (;;) {
       const el = typeof elOrSelector === 'string' ? root.querySelector(elOrSelector) : elOrSelector;
       if (el && el.getAttribute('aria-disabled') !== 'true' && !el.disabled) {
         el.click();
         return true;
       }
+      if (Date.now() >= deadline) break;
       await sleep(300);
     }
     throw new Error(`Nut khong bam duoc (van bi disabled): ${
@@ -717,7 +726,8 @@
   async function composerScope(timeout = 20000) {
     const deadline = Date.now() + timeout * paceFactor();
     const onComposePage = () => /^\/compose\//.test(location.pathname);
-    while (Date.now() < deadline) {
+    // Kiem truoc, het han moi thoi: xem clickWhenEnabled()
+    for (;;) {
       const dialog = [...document.querySelectorAll('[role="dialog"]')]
         .find((d) => d.querySelector('[data-testid="tweetTextarea_0"]'));
       if (dialog) return dialog;
@@ -729,6 +739,7 @@
       if (onComposePage() && document.querySelector('[data-testid="tweetTextarea_0"]')) {
         return document;
       }
+      if (Date.now() >= deadline) break;
       await sleep(300);
     }
     // Tha bo bai con hon dang nham cho. Nguoi goi bat loi nay va bo qua bai.
@@ -977,9 +988,11 @@
       await dismissOverlays();
 
       // Bo han bai nay, y nhu nhanh dang tai cho: giu lai thi pickNext() se
-      // nhat no len o luot sau va dam vao dung cho hong do.
-      markDone(job);
-      if (++consecutiveFails >= 5) {
+      // nhat no len o luot sau va dam vao dung cho hong do. Tru reply/retweet
+      // hong vi tab dang an (holdUntilVisible).
+      const held = holdUntilVisible(job);
+      if (!held) markDone(job);
+      if (!held && ++consecutiveFails >= 5) {
         state.running = false;
         addLog('Hong 5 lan lien tiep, da dung. Kiem tra xem X co dang chan khong.', 'err');
         save(state);
@@ -994,12 +1007,23 @@
     scheduleNext();
   }
 
-  function pickNext() {
+  /**
+   * Viec ke tiep. `onlyTweets`: chi lay tweet moi, de reply/retweet dang doi
+   * tab hien lai (holdUntilVisible) nam cho; con lai toan reply/retweet thi
+   * tra null — van con viec, khong phai het hang doi.
+   */
+  function pickNext({ onlyTweets = false } = {}) {
     const pending = state.queue
       .map((item, index) => ({ ...item, index }))
       .filter((item) => !state.posted.includes(fingerprint(item)));
 
-    if (pending.length) return pending.find((p) => p.index >= state.cursor) || pending[0];
+    const usable = onlyTweets ? pending.filter((p) => p.type === 'tweet') : pending;
+    // List tweet luon lam truoc tweet moi, ke ca reply/retweet bi giu lai luc
+    // tab an ma cursor da di qua (tweet moi van dang trong luc do)
+    const list = usable.find((p) => p.type !== 'tweet');
+    if (list) return list;
+    if (usable.length) return usable.find((p) => p.index >= state.cursor) || usable[0];
+    if (pending.length) return null;
     if (!state.settings.loop || !state.queue.length) return null;
 
     // che do lap: bo lich su, chay lai tu dau
@@ -1070,8 +1094,17 @@
       return;
     }
 
-    const job = pickNext();
+    // Reply/retweet dang doi tab X hien lai (xem holdUntilVisible)
+    if (state.retryWhenVisible && !document.hidden) {
+      state.retryWhenVisible = false;
+      save(state);
+      addLog('Tab X da hien lai, lam tiep reply/retweet.', 'ok');
+    }
+    const waiting = Boolean(state.retryWhenVisible);
+
+    const job = pickNext({ onlyTweets: waiting });
     if (!job) {
+      if (waiting) return;   // chi con reply/retweet: doi tab hien lai
       addLog('Het bai trong hang doi.', 'warn');
       state.running = false;
       save(state);
@@ -1138,10 +1171,12 @@
       addLog(`Loi: ${e.message}${seen ? ` — man hinh dang hien: "${seen}"` : ''}`, 'err');
 
       // Bo han bai nay. Khong bo thi pickNext() tra lai dung no o luot sau,
-      // gap lai dung hop thoai do, va ket cung o day mai.
-      markDone(job);
+      // gap lai dung hop thoai do, va ket cung o day mai. Tru reply/retweet
+      // hong vi tab dang an: giu lai, lam khi tab hien len.
+      const held = holdUntilVisible(job);
+      if (!held) markDone(job);
 
-      if (++consecutiveFails >= 5) {
+      if (!held && ++consecutiveFails >= 5) {
         state.running = false;
         addLog('Hong 5 lan lien tiep, da dung. Kiem tra xem X co dang chan khong.', 'err');
         save(state);
@@ -1181,6 +1216,27 @@
         : 'Da dang het content cho nhom label nay. Bam "Xoa lich su" hoac doi label.', 'err');
     save(state);
     render();
+  }
+
+  /**
+   * Reply/retweet hong luc tab X dang an thi KHONG bo viec do.
+   *
+   * Tab an (chuyen tab khac, thu nho cua so) thi Chrome ngung ve trang va don
+   * hen gio lai. Reply/retweet can trang bai viet hien ra de bam dung nut cua
+   * bai do — hong luc nay la do tab, khong phai do bai. Danh dau "da lam" nhu
+   * loi thuong thi mat han reply do, va 5 lan nhu vay la bot tu dung.
+   *
+   * Nen giu lai, khong tinh la loi, va tam hoan reply/retweet (tweet moi van
+   * dang) toi khi tab hien lai — xem runTick(). Giu lai van an toan: cac buoc
+   * nem loi deu nam TRUOC luc bam gui, nen lam lai khong ra reply doi; retweet
+   * lam lai thi gap nut "unretweet" va bo qua.
+   * @returns {boolean} da giu lai — nguoi goi khong markDone, khong dem loi
+   */
+  function holdUntilVisible(job) {
+    if (!document.hidden || (job.type !== 'reply' && job.type !== 'retweet')) return false;
+    state.retryWhenVisible = true;
+    addLog(`Tab X dang an nen chua ${job.type} duoc bai ${job.id}. Giu lai, se lam khi mo tab X len.`, 'warn');
+    return true;
   }
 
   /** Danh dau mot viec la da qua (xong hay hong deu vay), de khong lam lai. */
@@ -1609,7 +1665,9 @@
 
     $('xap-status').innerHTML = state.running
       ? `<b class="xap-on">● Dang chay</b> — bai ke tiep sau <b>${mm}:${String(ss).padStart(2, '0')}</b><br>
-         Da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`
+         Da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai` +
+        (state.retryWhenVisible
+          ? '<br><span class="xap-warn">⏸ Reply/retweet dang doi tab X hien lai</span>' : '')
       : !state.queue.length
         ? `<b class="xap-dim2">○ Hang doi trong</b> — bam Bat dau de dung tu o nhap · hom nay <b>${countToday()}</b> bai`
         : `<b class="xap-dim2">○ Dang dung</b> — da dang <b>${done}/${state.queue.length}</b> · hom nay <b>${countToday()}</b> bai`;

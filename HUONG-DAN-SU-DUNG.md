@@ -161,6 +161,7 @@ Cần biết:
 - **Bài đã retweet từ trước** thì bỏ qua, không tính là lỗi, chạy sang việc kế tiếp ngay.
 - **Tweet đã làm rồi thì không làm lại**, kể cả khi bạn sửa nhãn hay dán lại cùng id. Muốn reply thêm thì tăng số lần reply (ví dụ 1 → 2), công cụ chỉ làm phần còn thiếu. Muốn làm lại từ đầu thì bấm **"Xoá lịch sử"**.
 - **Bài khoá reply** (chủ bài chỉ cho một số người trả lời) sẽ báo lỗi ở phần reply, nhưng vẫn retweet.
+- **Tab X bị ẩn** (chuyển sang tab khác, thu nhỏ cửa sổ) thì reply/retweet thường không làm được. Công cụ giữ các việc đó lại, không bỏ, dòng giữa bảng báo `⏸ Reply/retweet đang đợi tab X hiện lại`. Bài mới vẫn đăng bình thường; mở tab X lên là công cụ làm tiếp. Xem thêm phần "Khi gặp trục trặc".
 - **Reply hàng loạt cùng một kiểu dễ bị X hạn chế** hơn đăng bài thường. Mỗi tweet nên reply ít lần, và giữ khoảng cách vài phút.
 
 ---
@@ -182,6 +183,12 @@ Cần biết:
 **Bấm Bắt đầu mà báo hàng đợi trống** — Bạn chưa nhập nhãn (hoặc để số tweet là 0 mà list tweet còn trống).
 
 **Bấm Bắt đầu rồi mà mãi không đăng** — Nhìn số đếm ngược giữa bảng. Đang đếm thì cứ để yên.
+
+**Để chạy nền thì không reply được** — Khi tab X bị ẩn, Chrome ngừng vẽ trang và làm chậm mọi nhịp chờ. Đăng bài mới chỉ cần ô soạn bài nên vẫn chạy được, còn reply/retweet phải mở trang bài viết ra để bấm đúng nút của bài đó — trang không được vẽ thì không có nút để bấm. Công cụ sẽ giữ các reply/retweet đó lại và làm khi tab hiện lên. Muốn reply chạy liên tục:
+
+- Mở X ở **một cửa sổ Chrome riêng**, để tab X là tab đang mở của cửa sổ đó.
+- **Đừng thu nhỏ** cửa sổ đó xuống thanh taskbar. Kéo nhỏ lại, để ở một góc màn hình là được.
+- **Đừng để cửa sổ khác che kín** nó: Windows coi cửa sổ bị che kín hoàn toàn là đang ẩn. Hở một góc là đủ.
 
 **Đang chạy thì tự dừng** — Xem dòng cuối khung nhật ký ở đáy bảng: đủ số bài hôm nay thì đợi mai, hết bài thì nhập nhãn mới.
 
