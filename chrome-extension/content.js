@@ -725,27 +725,40 @@
    */
   async function composerScope(timeout = 20000) {
     const deadline = Date.now() + timeout * paceFactor();
-    // Trang soan bai: /compose/post, va o soan cua intent (/intent/post) ma
-    // replyViaCompose() mo ra
-    const onComposePage = () => /^\/(compose|intent)\//.test(location.pathname);
     // Kiem truoc, het han moi thoi: xem clickWhenEnabled()
     for (;;) {
-      const dialog = [...document.querySelectorAll('[role="dialog"]')]
-        .find((d) => d.querySelector('[data-testid="tweetTextarea_0"]'));
-      if (dialog) return dialog;
-
-      // O soan thao NGOAI modal chi dang tin khi dang dung o trang soan bai.
-      // Tren trang mot bai viet (hay trang xem anh cua bai do), chinh cai ten
-      // "tweetTextarea_0" lai la o TRA LOI bai cua nguoi khac — go vao do la
-      // bai cua minh di ra duoi dang reply duoi tweet nguoi ta.
-      if (onComposePage() && document.querySelector('[data-testid="tweetTextarea_0"]')) {
-        return document;
-      }
+      const scope = composerOnScreen();
+      if (scope) return scope;
       if (Date.now() >= deadline) break;
       await sleep(300);
     }
     // Tha bo bai con hon dang nham cho. Nguoi goi bat loi nay va bo qua bai.
-    throw new Error(`Khong thay o soan thao bai moi (dang o ${location.pathname})`);
+    throw new Error(`Khong thay o soan thao bai moi — ${describeScreen()}`);
+  }
+
+  /**
+   * O soan bai moi dang hien, hoac null: modal CHUA o soan thao, hoac chinh
+   * trang soan bai (/compose/post, va /intent/post ma replyViaCompose mo ra).
+   *
+   * Phai la modal chua o soan thao, khong phai modal bat ky: trang nao cung co
+   * the dang co san mot [role="dialog"] khac — the ho so hien khi re chuot len
+   * ten nguoi o trang Thong bao, menu, popup cua X — va lay nham no thi tim o
+   * soan thao trong do mai khong thay.
+   *
+   * O soan thao NGOAI modal chi dang tin khi dang dung o trang soan bai. Tren
+   * trang mot bai viet (hay trang xem anh cua bai do), chinh cai ten
+   * "tweetTextarea_0" lai la o TRA LOI bai cua nguoi khac — go vao do la bai
+   * cua minh di ra duoi dang reply duoi tweet nguoi ta.
+   */
+  function composerOnScreen() {
+    const dialog = [...document.querySelectorAll('[role="dialog"]')]
+      .find((d) => d.querySelector('[data-testid="tweetTextarea_0"]'));
+    if (dialog) return dialog;
+    if (/^\/(compose|intent)\//.test(location.pathname) &&
+        document.querySelector('[data-testid="tweetTextarea_0"]')) {
+      return document;
+    }
+    return null;
   }
 
   async function doPostTweet(text, scope = document) {
@@ -958,41 +971,51 @@
    * @returns {boolean} mo duoc bang SPA hay khong
    */
   async function openComposerInPlace(allowPurge = true) {
-    const btn =
+    const findButton = () =>
       document.querySelector('[data-testid="SideNav_NewTweet_Button"]') ||
+      document.querySelector('[data-testid="FloatingActionButtons_Tweet_Button"]') ||
       document.querySelector('a[href="/compose/post"]');
-    if (!btn) return null;
-    btn.click();
 
     // Trang chu von da co san mot o soan thao inline o dau dong thoi gian.
     // Khi modal mo ra thi co HAI o cung ten "tweetTextarea_0" — phai bam vao
     // dung o trong modal, neu khong chu se go vao o inline nam khuat phia sau.
-    try {
-      const dialog = await waitFor('[role="dialog"]', 12000);
-      await waitFor('[data-testid="tweetTextarea_0"]', 12000, dialog);
-
-      // Con ban nhap da luu thi don truoc khi go. De do lai thi bai nao cung
-      // co nguy co thua ke chu cu, va cang dang cang chong them draft moi.
-      // Don xong phai mo lai o soan thao, va chi mot lan — hong thi di tiep
-      // voi cai dang co, khong quay vong.
-      if (allowPurge && Date.now() - draftsCheckedAt > 600000 && draftsEntry(dialog)) {
-        await purgeDrafts(dialog);
-        return openComposerInPlace(false);
-      }
-
-      // O soan thao phai RONG truoc khi go. Khong sach thi vut ban nhap bang
-      // GIAO DIEN roi mo lai o moi — dung co xoa chu bang vung chon, vi khi
-      // DraftJS khong nhin thay vung chon ta dat thi lenh go sau noi them chu
-      // khong de len, va bai ra thanh nhan ban.
-      if (allowPurge && !isEmpty(dialog.querySelector('[data-testid="tweetTextarea_0"]'))) {
-        addLog('O soan thao con chu cu, vut ban nhap roi mo lai.', 'warn');
-        await discardDraft();
-        return openComposerInPlace(false);
-      }
-      return dialog;
-    } catch {
+    // composerOnScreen() chi nhan modal CHUA o soan thao, khong lay bua modal
+    // dau tien: o trang Thong bao, the ho so hien khi re chuot cung la modal.
+    //
+    // Bam toi da hai lan. Dang co popup mo (the ho so, menu...) thi lan bam
+    // dau co khi chi lam dong popup do, o soan thao khong mo ra.
+    let scope = null;
+    for (let i = 0; i < 2 && !scope; i++) {
+      const btn = findButton();
+      if (!btn) break;
+      btn.click();
+      if (await until(() => composerOnScreen(), 8000)) scope = composerOnScreen();
+      else await dismissOverlays();
+    }
+    if (!scope) {
+      addLog(`Khong mo duoc o soan thao tai cho — ${describeScreen()}`, 'warn');
       return null;
     }
+
+    // Con ban nhap da luu thi don truoc khi go. De do lai thi bai nao cung
+    // co nguy co thua ke chu cu, va cang dang cang chong them draft moi.
+    // Don xong phai mo lai o soan thao, va chi mot lan — hong thi di tiep
+    // voi cai dang co, khong quay vong.
+    if (allowPurge && Date.now() - draftsCheckedAt > 600000 && draftsEntry(scope)) {
+      await purgeDrafts(scope);
+      return openComposerInPlace(false);
+    }
+
+    // O soan thao phai RONG truoc khi go. Khong sach thi vut ban nhap bang
+    // GIAO DIEN roi mo lai o moi — dung co xoa chu bang vung chon, vi khi
+    // DraftJS khong nhin thay vung chon ta dat thi lenh go sau noi them chu
+    // khong de len, va bai ra thanh nhan ban.
+    if (allowPurge && !isEmpty(scope.querySelector('[data-testid="tweetTextarea_0"]'))) {
+      addLog('O soan thao con chu cu, vut ban nhap roi mo lai.', 'warn');
+      await discardDraft();
+      return openComposerInPlace(false);
+    }
+    return scope;
   }
 
   /** Dong o soan thao dang modal sau khi dang xong. */
@@ -1075,7 +1098,12 @@
         return;
       }
       if (job.type === 'tweet') {
-        await doPostTweet(job.text, await composerScope());
+        // Nap lai ma khong dung o trang soan bai (X dua ve trang khac, nguoi
+        // dung dang o trang Thong bao...) thi mo o soan thao tai cho bang nut
+        // Post, khong bo bai
+        const scope = (await composerScope(8000).catch(() => null)) || (await openComposerInPlace());
+        if (!scope) throw new Error(`Khong thay o soan thao bai moi — ${describeScreen()}`);
+        await doPostTweet(job.text, scope);
         addLog(`Da dang: ${job.text.slice(0, 50)}`, 'ok');
       } else if (job.type === 'reply') {
         if (job.via === 'compose') await replyViaCompose(job.id, job.text);

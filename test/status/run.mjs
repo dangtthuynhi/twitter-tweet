@@ -14,6 +14,7 @@ const bundle = `
 window.__bot = (function () {
   'use strict';
   const state = { settings: { slowMode: false } };
+  let draftsCheckedAt = 0;
   window.__logs = [];
   function addLog(msg, kind) { window.__logs.push([kind || 'info', msg]); }
 
@@ -27,10 +28,12 @@ ${[
   grabFn('composerScope'), grabConst('REPLY_HINT_RE'), grabFn('replyViaCompose'),
   grabFn('dismissOverlays'), grabConst('REPOST_RE'), grabConst('UNDO_REPOST_RE'),
   grabConst('CANCEL_RE'), grabConst('OVERLAY_SELECTOR'), grabFn('describeScreen'),
-  grabFn('retweetViaIntent'),
+  grabFn('retweetViaIntent'), grabFn('composerOnScreen'), grabConst('draftsEntry'),
+  grabFn('describeOverlay'), grabFn('purgeDrafts'), grabFn('openComposerInPlace'),
 ].join('\n\n')}
 
-  return { findArticle, doRetweet, doReply, parseLinks, replyViaCompose, retweetViaIntent };
+  return { findArticle, doRetweet, doReply, parseLinks, replyViaCompose, retweetViaIntent,
+    openComposerInPlace, doPostTweet };
 })();
 `;
 
@@ -197,8 +200,38 @@ console.log('\n6. Retweet qua hop thoai retweet — duong dung khi tab X an');
   await page.close();
 }
 
-// --- 7. doc danh sach link ---------------------------------------------------
-console.log('\n7. Doc o danh sach link');
+// --- 7. mo o soan bai moi tu trang bat ky (vd Thong bao) --------------------
+console.log('\n7. Mo o soan bai moi khi dang o trang Thong bao');
+{
+  const TWEET = 'Lena and Miu make every scene feel like home. 💗\n\nLENAMIU AT FLEX\n#LenaMiu';
+  const post = (page) => page.evaluate(async (t) => {
+    try {
+      const scope = await window.__bot.openComposerInPlace();
+      if (!scope) return { ok: false, err: 'khong mo duoc o soan thao' };
+      const isCard = scope.dataset?.testid === 'HoverCard';
+      await window.__bot.doPostTweet(t, scope);
+      return { ok: true, isCard };
+    } catch (e) { return { ok: false, err: e.message }; }
+  }, TWEET);
+  const posted = (page) => read(page, () => window.__replies.map((r) => r.text));
+
+  let page = await fresh();
+  await page.evaluate(() => window.__setupSideNav({ hoverCard: true }));
+  let r = await post(page);
+  check('dang co the ho so (role="dialog") nam truoc: van tim dung o soan thao, dang dung bai',
+    r.ok && !r.isCard && (await posted(page)).includes(TWEET), [r, await posted(page)]);
+  await page.close();
+
+  page = await fresh();
+  await page.evaluate(() => window.__setupSideNav({ hoverCard: true, eatFirstClick: true }));
+  r = await post(page);
+  check('lan bam "Post" dau chi dong the ho so: bam lai lan hai, van dang duoc',
+    r.ok && (await posted(page)).includes(TWEET), [r, await posted(page)]);
+  await page.close();
+}
+
+// --- 8. doc danh sach link ---------------------------------------------------
+console.log('\n8. Doc o danh sach link');
 {
   const page = await fresh();
   const raw = [

@@ -183,6 +183,31 @@
     }
     document.body.appendChild(box);
   };
+  // Nut "Post" o thanh ben, nhu o trang Thong bao. `hoverCard`: dang co san the
+  // ho so (cung la role="dialog", nam TRUOC modal soan thao trong DOM) — X hien
+  // khi re chuot len ten nguoi. `eatFirstClick`: lan bam dau chi dong the do,
+  // o soan thao chua mo.
+  window.__setupSideNav = ({ hoverCard = false, eatFirstClick = false } = {}) => {
+    let card = null;
+    if (hoverCard) {
+      card = document.createElement('div');
+      card.setAttribute('role', 'dialog');
+      card.dataset.testid = 'HoverCard';
+      card.textContent = '@someone · Follow';
+      document.body.prepend(card);
+    }
+    const nav = document.createElement('a');
+    nav.href = '#';
+    nav.dataset.testid = 'SideNav_NewTweet_Button';
+    nav.textContent = 'Post';
+    nav.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (eatFirstClick && card && card.isConnected) { card.remove(); return; }
+      window.__openCompose({ placeholder: "What's happening?" });
+    };
+    document.body.prepend(nav);
+  };
   // Menu cua X dong khi bam Esc
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') document.querySelectorAll('[role="menu"]').forEach((m) => m.remove());
