@@ -20,12 +20,14 @@ function load({ contents, postedContent = [], settings = {} }) {
   const code = [
     grabConst('MAX_TWEET'), grabConst('QUEUE_FORMAT'), grabConst('EMOJI_RE'),
     grabFn('tweetLength'), grabConst('fingerprint'), grabConst('MIN_ROOM'),
-    grabConst('contentRoom'), grabFn('usableContent'), grabConst('NAME_RE'),
+    grabConst('contentRoom'), grabFn('parseOwnContent'), grabFn('ownKey'), grabFn('ownContent'),
+    grabFn('contentSources'), grabFn('contentText'), grabConst('isOwnKey'), grabFn('usableContent'), grabConst('NAME_RE'),
     grabConst('EMOJI_TAIL_RE'), grabFn('cutWords'), grabFn('fitContent'),
     grabFn('assignContent'), grabFn('readLabels'), grabFn('parseLinks'),
+    grabFn('listPlan'), grabConst('ownOnly'), grabFn('tweetQuantity'),
     grabFn('buildQueue'), grabConst('pendingCount'), grabFn('clearQueue'), grabFn('refreshQueue'),
     'const contentLens = contentData.map(tweetLength);',
-    'return { tweetLength, fingerprint, usableContent, fitContent, assignContent, buildQueue,',
+    'return { tweetLength, fingerprint, usableContent, fitContent, assignContent, buildQueue, parseOwnContent,',
     '  pendingCount, clearQueue, refreshQueue };',
   ].join('\n');
   // contentLens khai bao sau cac ham nhung truoc khi goi, nen van dung duoc
@@ -327,6 +329,105 @@ console.log('\n9. Kho content-lenamiu.json that');
   check('label dai: ca kho ghep xong deu <= 280', over === 0, over);
   check('label dai: cau nao cung con ten Lena/Miu', noName === 0, noName);
   check('label dai: khong cau nao phai cat giua chung', midCut === 0, midCut);
+}
+
+// --- 10. list bai cua minh ---------------------------------------------------
+console.log('\n10. List bai cua minh (tu go)');
+{
+  const OWN = 'Bai mot 💗\ndong hai cua bai mot\n\n\nBai hai #tag\n\nBai mot 💗\ndong hai cua bai mot\n';
+  const t = load({ contents: ['kho a', 'kho b'], settings: { contentSource: 'own', ownContent: OWN } });
+  check('bai cach nhau bang dong trong, bai nhieu dong giu nguyen, bo trung',
+    JSON.stringify(t.parseOwnContent(OWN)) === JSON.stringify(['Bai mot 💗\ndong hai cua bai mot', 'Bai hai #tag']),
+    t.parseOwnContent(OWN));
+  const dash = 'Dong 1\nDong 2\n---\nBai hai\n  ---  \n';
+  check('dong --- van tach bai',
+    JSON.stringify(t.parseOwnContent(dash)) === JSON.stringify(['Dong 1\nDong 2', 'Bai hai']), t.parseOwnContent(dash));
+
+  // Dang lan luot tu tren xuong, nguyen van, khong gan label
+  const LIST = 'Mot\n\nHai\n\nBa';
+  const o = load({ contents: ['kho a'], settings: { contentSource: 'own', ownContent: LIST, labels: LABELS, quantity: 99 } });
+  o.refreshQueue();
+  check('so tweet = so bai trong list (bo qua o so luong)', o.state.queue.length === 3, o.state.queue.length);
+  const order = [];
+  for (let i = 0; i < 4; i++) {
+    const j = { type: 'tweet', labels: LABELS, hashtag: 'k' };
+    if (!o.assignContent(j)) { order.push('HET'); break; }
+    order.push(j.text);
+    o.state.postedContent.push({ hashtag: 'k', contentIndex: j.contentIndex });
+  }
+  check('dang lan luot theo thu tu, nguyen van, het list thi dung',
+    order.join('|') === 'Mot|Hai|Ba|HET', order);
+
+  // Them bai vao giua list: bai da dang khong dang lai, bai moi duoc dang
+  o.state.settings.ownContent = 'Mot\n\nMoi chen\n\nHai\n\nBa\n\nCuoi';
+  o.refreshQueue();
+  check('sua list: so tweet theo list moi', o.state.queue.length === 5, o.state.queue.length);
+  const next = [];
+  for (let i = 0; i < 3; i++) {
+    const j = { type: 'tweet', labels: LABELS, hashtag: 'label khac' };
+    if (!o.assignContent(j)) { next.push('HET'); break; }
+    next.push(j.text);
+    o.state.postedContent.push({ hashtag: 'label khac', contentIndex: j.contentIndex });
+  }
+  check('sua list / doi label: chi dang bai chua dang, dung thu tu', next.join('|') === 'Moi chen|Cuoi|HET', next);
+
+  const hugeLabel = '#LenaMiu '.repeat(28).trim();
+  const h = load({ contents: [], settings: { contentSource: 'own', ownContent: 'mot\n\nhai' } });
+  check('label dai qua khong chan list bai cua minh', h.usableContent(hugeLabel, 'x').length === 2, null);
+
+  const both = load({ contents: ['kho a', 'kho b'], settings: { contentSource: 'both', ownContent: 'cua minh 1\n\ncua minh 2' } });
+  check('ca hai: kho co san + list cua minh', both.usableContent(LABELS, 'k').length === 4, both.usableContent(LABELS, 'k'));
+  const texts = [];
+  for (let i = 0; i < 4; i++) {
+    const j = { type: 'tweet', labels: LABELS, hashtag: 'k' };
+    both.assignContent(j);
+    texts.push(j.text);
+    both.state.postedContent.push({ hashtag: 'k', contentIndex: j.contentIndex });
+  }
+  check('ca hai: dang het list cua minh truoc (khong label), roi boc kho (co label)',
+    texts[0] === 'cua minh 1' && texts[1] === 'cua minh 2' &&
+      texts.slice(2).every((x) => /^kho [ab]\n\n/.test(x) && x.endsWith(LABELS)), texts);
+
+  const nolabel = load({ contents: [], settings: { contentSource: 'own', ownContent: 'a\n\nb' } });
+  nolabel.refreshQueue();
+  check('list cua minh: khong can label van dang tweet', nolabel.state.queue.length === 2, nolabel.state.queue);
+
+  const builtinNoLabel = load({ contents: ['x'], settings: { quantity: 2 } });
+  builtinNoLabel.refreshQueue();
+  check('kho co san ma khong co label: van khong dang', builtinNoLabel.state.queue.length === 0, builtinNoLabel.state.queue);
+
+  const empty = load({ contents: ['kho a'], settings: { contentSource: 'own', ownContent: '' } });
+  check('list cua minh trong thi khong boc tu kho',
+    empty.assignContent({ type: 'tweet', labels: LABELS, hashtag: 'k' }) === false, null);
+}
+
+// --- 11. reply / repost / ca hai, co the khong dang bai --------------------------
+console.log('\n11. Chon reply / repost / ca hai, tat tweet moi');
+{
+  const IDS = '2103095712292696459\n2103000000000000001';
+  const types = (settings) => {
+    const t = load({ contents: ['a', 'b', 'c', 'd', 'e', 'f'],
+      settings: { labels: LABELS, quantity: 2, links: IDS, repliesPerLink: 2, ...settings } });
+    t.refreshQueue();
+    return t.state.queue.map((i) => i.type).join(',');
+  };
+  check('ca hai', types({ listAction: 'both' }) === 'reply,reply,retweet,reply,reply,retweet,tweet,tweet',
+    types({ listAction: 'both' }));
+  check('chi reply', types({ listAction: 'reply' }) === 'reply,reply,reply,reply,tweet,tweet', types({ listAction: 'reply' }));
+  check('chi repost', types({ listAction: 'retweet' }) === 'retweet,retweet,tweet,tweet', types({ listAction: 'retweet' }));
+  check('tat tweet moi', types({ postTweets: false }) === 'reply,reply,retweet,reply,reply,retweet',
+    types({ postTweets: false }));
+  check('tat tweet moi + chi repost', types({ postTweets: false, listAction: 'retweet' }) === 'retweet,retweet',
+    types({ postTweets: false, listAction: 'retweet' }));
+
+  const t = load({ contents: ['a', 'b', 'c'], settings: { labels: LABELS, quantity: 2, links: IDS } });
+  t.refreshQueue();
+  const qid = t.state.queueId;
+  t.state.settings.postTweets = false;
+  t.refreshQueue();
+  t.state.settings.postTweets = true;
+  t.refreshQueue();
+  check('tat roi bat lai tweet moi: giu dot cu (khong dang lai tu dau)', t.state.queueId === qid, t.state.queueId);
 }
 
 console.log(`\n==== ${pass} dat / ${fail} hong ====`);

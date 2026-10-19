@@ -1,20 +1,6 @@
 // Sinh tu browser-script/x-auto-poster.user.js — DUNG SUA TRUC TIEP FILE NAY.
 // Sua o file goc roi chay: node build-extension.mjs
 
-// ==UserScript==
-// @name         X Auto Poster
-// @namespace    local.autotweet
-// @author       dangtthuynhi
-// @version      1.0.0
-// @description  Tu dong dang tweet / retweet theo lich, chay ngay trong tab X da dang nhap
-// @match        https://x.com/*
-// @match        https://twitter.com/*
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        unsafeWindow
-// @run-at       document-start
-// @homepageURL  https://github.com/dangtthuynhi/twitter-tweet
-// ==/UserScript==
 
 /*
  * Cach hoat dong
@@ -86,10 +72,15 @@
     queueTweetSig: '',  // label+so luong cua dot tweet moi do
     settings: {
       labels: '',       // text o nhap label, giu qua cac lan nap lai trang
+      postTweets: true, // tat = khong dang tweet moi, chi reply/repost theo list
       quantity: 100,    // moi lan dung hang doi thi sinh bao nhieu tweet
-      // --- list tweet: reply (kem label) roi retweet ---
+      // --- nguon content ---
+      contentSource: 'builtin',  // 'builtin' (kho co san) | 'own' (tu go) | 'both'
+      ownContent: '',   // list bai tu go: cac bai cach nhau bang dong trong (hoac '---')
+      // --- list tweet: reply (kem label) va/hoac retweet ---
       links: '',        // moi dong mot tweet id (hoac link)
-      repliesPerLink: 1,  // moi tweet trong list reply bao nhieu lan, roi retweet mot lan
+      listAction: 'both', // 'both' (reply roi repost) | 'reply' | 'retweet'
+      repliesPerLink: 1,  // moi tweet trong list reply bao nhieu lan
       gapMin: 1,        // cach nhau it nhat bao nhieu phut
       gapMax: 4,        // nhieu nhat bao nhieu phut
       maxPerDay: 100,
@@ -185,17 +176,75 @@
   const contentRoom = (labels) => MAX_TWEET - (labels ? tweetLength(labels) + 2 : 0);
 
   /**
-   * Chi so cac content con dung duoc voi cum label nay: chua tung dang kem
-   * dung nhom label do. Content dai qua thi khong bo, assignContent se cat bot.
+   * Tach o "content cua minh" (mot list bai) thanh tung bai, giu dung thu tu.
+   * Cac bai cach nhau bang dong trong (hoac dong '---'); xuong dong mot lan
+   * thi van la cung mot bai. Bo bai trung.
+   */
+  function parseOwnContent(raw) {
+    const posts = [];
+    let cur = [];
+    const flush = () => { if (cur.length) posts.push(cur.join('\n')); cur = []; };
+    for (const line of String(raw || '').replace(/\r/g, '').split('\n')) {
+      if (/^\s*(?:---)?\s*$/.test(line)) flush();
+      else cur.push(line.trimEnd());
+    }
+    flush();
+    return [...new Set(posts.map((p) => p.trim()).filter(Boolean))];
+  }
+
+  /**
+   * Khoa chong trung cua content tu go: bam theo CHU chu khong theo vi tri.
+   * Theo vi tri thi them hay xoa mot dong la ca danh sach truot di, va cau da
+   * dang lai thanh "chua dang". Kho co san thi van dung so thu tu (so).
+   */
+  function ownKey(text) {
+    let h = 5381;
+    for (let i = 0; i < text.length; i++) h = ((h * 33) ^ text.charCodeAt(i)) >>> 0;
+    return `u:${h.toString(36)}:${text.length}`;
+  }
+
+  /** Content tu go: [{key, text}]. */
+  function ownContent() {
+    return parseOwnContent(state.settings.ownContent).map((text) => ({ key: ownKey(text), text }));
+  }
+
+  /** Nguon content dang chon: dung kho co san va/hoac content tu go. */
+  function contentSources() {
+    const src = state.settings.contentSource || 'builtin';
+    return { builtin: src !== 'own', own: src !== 'builtin' };
+  }
+
+  /** Chu cua mot content theo khoa (so = kho co san, 'u:...' = tu go). */
+  function contentText(key) {
+    if (typeof key === 'number') return contentData[key];
+    return ownContent().find((o) => o.key === key)?.text;
+  }
+
+  /** Content tu go thi dang nguyen van, KHONG gan label. */
+  const isOwnKey = (key) => typeof key === 'string';
+
+  /**
+   * Khoa cac content con dung duoc voi cum label nay. Content dai qua thi
+   * khong bo, assignContent se cat bot.
+   *
+   * Kho co san: chua tung dang kem dung nhom label do. Content tu go thi
+   * khong gan label, nen da dang mot lan la thoi — doi label cung khong dang
+   * lai, vi X chan bai trung chu y het.
    */
   function usableContent(labels, labelKey) {
-    if (contentRoom(labels) < MIN_ROOM) return [];
-    const used = new Set(state.postedContent
-      .filter((pc) => pc.hashtag === labelKey)
-      .map((pc) => pc.contentIndex));
+    const { builtin, own } = contentSources();
     const out = [];
-    for (let i = 0; i < contentData.length; i++) {
-      if (!used.has(i)) out.push(i);
+    if (builtin && contentRoom(labels) >= MIN_ROOM) {
+      const used = new Set(state.postedContent
+        .filter((pc) => pc.hashtag === labelKey)
+        .map((pc) => pc.contentIndex));
+      for (let i = 0; i < contentData.length; i++) {
+        if (!used.has(i)) out.push(i);
+      }
+    }
+    if (own) {
+      const used = new Set(state.postedContent.map((pc) => pc.contentIndex).filter(isOwnKey));
+      for (const o of ownContent()) if (!used.has(o.key)) out.push(o.key);
     }
     return out;
   }
@@ -271,9 +320,15 @@
     const { labels } = job;
     const pool = usableContent(labels, job.hashtag);
     if (!pool.length) return false;
-    const contentIndex = pool[Math.floor(Math.random() * pool.length)];
-    const content = fitContent(contentData[contentIndex], contentRoom(labels));
-    const text = labels ? `${content}\n\n${labels}` : content;
+    // List bai cua minh dang LAN LUOT tu tren xuong (bai dau chua dang); het
+    // list moi boc ngau nhien trong kho co san (che do "Ca hai")
+    const next = pool.find(isOwnKey);
+    const contentIndex = next !== undefined ? next : pool[Math.floor(Math.random() * pool.length)];
+    const raw = contentText(contentIndex);
+    if (!raw) return false;
+    const tag = isOwnKey(contentIndex) ? '' : labels;
+    const content = fitContent(raw, contentRoom(tag));
+    const text = tag ? `${content}\n\n${tag}` : content;
     if (!content || tweetLength(text) > MAX_TWEET) return false;
     job.content = content;
     job.contentIndex = contentIndex;
@@ -1367,8 +1422,20 @@
   function stopNoContent(job) {
     state.running = false;
     const room = contentRoom(job.labels);
-    addLog(!contentData.length ? 'Chua load duoc content-lenamiu.json'
-      : room < MIN_ROOM ? `Label dai qua, chi con ${Math.max(0, room)} ky tu cho content (can it nhat ${MIN_ROOM}). Rut gon label roi bam Bat dau lai.`
+    const { builtin, own } = contentSources();
+    const empty = (!builtin || !contentData.length) && (!own || !ownContent().length);
+    // Chi dung list bai cua minh ma da dang het list: do la xong viec, khong phai loi
+    if (!empty && !builtin) {
+      addLog('Da dang het list bai cua minh. Them bai moi vao list roi bam Bat dau de dang tiep.', 'ok');
+      save(state);
+      render();
+      return;
+    }
+    addLog(empty
+      ? (own && !builtin ? 'O "Content cua minh" dang trong. Go content vao roi bam Bat dau lai.'
+        : own ? 'Chua load duoc content-lenamiu.json va o "Content cua minh" dang trong'
+          : 'Chua load duoc content-lenamiu.json')
+      : !own && room < MIN_ROOM ? `Label dai qua, chi con ${Math.max(0, room)} ky tu cho content (can it nhat ${MIN_ROOM}). Rut gon label roi bam Bat dau lai.`
         : 'Da dang het content cho nhom label nay. Bam "Xoa lich su" hoac doi label.', 'err');
     save(state);
     render();
@@ -1496,6 +1563,9 @@
         .xap-wauto{width:auto}
         .xap-right{margin-left:auto}
         .xap-on{color:#00ba7c}
+        .xap-hide{display:none!important}
+        #xap-panel select{background:#0f1419;color:#e7e9ea;border:1px solid #38444d;
+          border-radius:6px;padding:6px 8px;font-size:13px;font-family:inherit;max-width:100%}
 `;
 
   const $ = (id) => document.getElementById(id);
@@ -1528,16 +1598,42 @@
 #LenaMiu #ลีน่าหมิว"></textarea>
         <div id="xap-label-info" class="xap-hint"></div>
         <div class="xap-row">
-          <label>So tweet muon dang</label>
-          <input id="xap-content-quantity" type="number" min="0" max="500" value="100">
+          <label>Nguon content</label>
+          <select id="xap-src">
+            <option value="builtin">Kho co san (content-lenamiu.json)</option>
+            <option value="own">Content cua minh</option>
+            <option value="both">Ca hai</option>
+          </select>
         </div>
-        <div class="xap-row"><label>List tweet — moi dong mot tweet id (hoac link): reply kem label o tren, roi retweet</label></div>
+        <div id="xap-own-box">
+          <div class="xap-row"><label>List bai cua minh — cac bai cach nhau bang mot dong trong, dang lan luot tu tren xuong, nguyen van</label></div>
+          <textarea id="xap-own" placeholder="Bai thu nhat 💗
+bai co the nhieu dong
+
+Bai thu hai #hashtag"></textarea>
+          <div id="xap-own-info" class="xap-hint"></div>
+        </div>
+        <div class="xap-row">
+          <label><input id="xap-post" type="checkbox" class="xap-wauto" checked> Dang tweet moi</label>
+          <span id="xap-qty-box"><input id="xap-content-quantity" type="number" min="0" max="500" value="100">
+          <label>bai</label></span>
+          <span id="xap-qty-own" class="xap-dim2"></span>
+        </div>
+        <div class="xap-row"><label>List tweet — moi dong mot tweet id (hoac link)</label></div>
         <textarea id="xap-links" class="xap-short" placeholder="2103095712292696459
 2103000000000000001"></textarea>
         <div class="xap-row">
+          <label>Voi moi tweet</label>
+          <select id="xap-list-action">
+            <option value="both">Reply roi repost</option>
+            <option value="reply">Chi reply</option>
+            <option value="retweet">Chi repost</option>
+          </select>
+        </div>
+        <div id="xap-reply-row" class="xap-row">
           <label>Moi tweet reply</label>
           <input id="xap-reply-per" type="number" min="0" max="20" value="1">
-          <label>lan, roi retweet</label>
+          <label>lan (kem label o tren)</label>
         </div>
         <div id="xap-links-info" class="xap-hint"></div>
         <div class="xap-row">
@@ -1625,7 +1721,8 @@
 
     for (const id of ['xap-gapmin', 'xap-gapmax', 'xap-max', 'xap-loop', 'xap-queue',
                       'xap-hfrom', 'xap-hto', 'xap-natural', 'xap-slow',
-                      'xap-content-quantity', 'xap-links', 'xap-reply-per']) {
+                      'xap-content-quantity', 'xap-links', 'xap-reply-per',
+                      'xap-post', 'xap-src', 'xap-own', 'xap-list-action']) {
       $(id).addEventListener('change', syncFromUI);
       $(id).addEventListener('input', syncFromUI);
     }
@@ -1679,14 +1776,18 @@
   function buildQueue(qid) {
     const { labels, labelKey } = readLabels(state.settings.labels);
     const { ids } = parseLinks(state.settings.links);
-    const perLink = state.settings.repliesPerLink;
-    const quantity = labels ? state.settings.quantity : 0;
+    const { perLink, retweet } = listPlan();
+    const quantity = tweetQuantity(labels);
     const need = ids.length * perLink + quantity;
 
-    if (need && !contentData.length) addLog('Chua load duoc content-lenamiu.json', 'err');
+    const { builtin, own } = contentSources();
+    const hasContent = (builtin && contentData.length) || (own && ownContent().length);
+    if (need && !hasContent) {
+      addLog(own && !builtin ? 'O "Content cua minh" dang trong' : 'Chua load duoc content-lenamiu.json', 'err');
+    }
     // Label dai qua thi dong bao duoi o label da noi, khong ghi log moi phim go
     const left = usableContent(labels, labelKey).length;
-    if (contentData.length && contentRoom(labels) >= MIN_ROOM && left < need) {
+    if (hasContent && (own || contentRoom(labels) >= MIN_ROOM) && left < need) {
       addLog(`Chi con ${left} content (can ${need})`, 'warn');
     }
 
@@ -1694,10 +1795,38 @@
     const items = [];
     for (const id of ids) {
       for (let n = 0; n < perLink; n++) items.push({ type: 'reply', id, n, fromList: true, ...slot });
-      items.push({ type: 'retweet', id, fromList: true });
+      if (retweet) items.push({ type: 'retweet', id, fromList: true });
     }
     for (let i = 0; i < quantity; i++) items.push({ type: 'tweet', qid, slot: i, ...slot });
     return items;
+  }
+
+  /**
+   * Moi tweet trong list lam gi: reply bao nhieu lan, co repost khong.
+   * 'reply' = chi reply, 'retweet' = chi repost, 'both' = reply roi repost.
+   */
+  function listPlan() {
+    const action = state.settings.listAction || 'both';
+    return {
+      perLink: action === 'retweet' ? 0 : state.settings.repliesPerLink,
+      retweet: action !== 'reply',
+    };
+  }
+
+  /** Chi dung list bai cua minh (khong dung kho co san). */
+  const ownOnly = () => (state.settings.contentSource || 'builtin') === 'own';
+
+  /**
+   * So tweet moi can dang. Tat "Dang tweet moi" thi 0. Chi dung list bai cua
+   * minh thi so bai = so bai trong list (o so luong bi an). Dung kho co san
+   * thi phai co label moi dang (tranh dang content tran khi lo bam Bat dau
+   * voi o label trong); co content tu go thi label la tuy chon.
+   */
+  function tweetQuantity(labels) {
+    if (state.settings.postTweets === false) return 0;
+    if (ownOnly()) return parseOwnContent(state.settings.ownContent).length;
+    if (!labels && !contentSources().own) return 0;
+    return state.settings.quantity;
   }
 
   /** So viec trong hang doi chua lam (chua co trong lich su). */
@@ -1736,11 +1865,20 @@
    * doi, va bot cu dang tiep hang doi theo kieu cu.
    */
   function refreshQueue() {
-    const { labels, quantity, links, repliesPerLink } = state.settings;
-    const sig = [QUEUE_FORMAT, labels, quantity, links, repliesPerLink].join('\u0000');
+    const { labels, quantity, links, repliesPerLink, postTweets, listAction, contentSource } = state.settings;
+    // Bat/tat tweet moi, doi nguon content hay doi viec voi list chi dung lai
+    // hang doi; dot tweet moi (queueId) van giu, nen bat lai la dang tiep.
+    // Chi dung list bai cua minh: so tweet = so bai trong list, label khong
+    // gan vao bai. Sua list la sang dot moi, nhung bai nao da dang roi thi
+    // van khong dang lai (postedContent nho theo chu) — bot dang tiep bai ke
+    // tiep chua dang, het list thi dung.
+    const own = ownOnly();
+    const list = own ? ownContent().map((o) => o.key).join(',') : '';
+    const sig = [QUEUE_FORMAT, labels, quantity, links, repliesPerLink, postTweets !== false,
+      listAction || 'both', contentSource || 'builtin', list].join('\u0000');
     if (sig === state.queueSig) return false;
     state.queueSig = sig;
-    const tweetSig = [QUEUE_FORMAT, labels, quantity].join('\u0000');
+    const tweetSig = own ? [QUEUE_FORMAT, 'own', list].join('\u0000') : [QUEUE_FORMAT, labels, quantity].join('\u0000');
     if (tweetSig !== state.queueTweetSig) {
       state.queueTweetSig = tweetSig;
       state.queueId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -1754,7 +1892,11 @@
     state.settings.labels = $('xap-queue').value;
     // 0 tweet moi la hop le: chi chay reply + retweet theo list tweet.
     state.settings.quantity = Math.max(0, parseInt($('xap-content-quantity').value, 10) || 0);
+    state.settings.postTweets = $('xap-post').checked;
+    state.settings.contentSource = $('xap-src').value;
+    state.settings.ownContent = $('xap-own').value;
     state.settings.links = $('xap-links').value;
+    state.settings.listAction = $('xap-list-action').value;
     const per = parseInt($('xap-reply-per').value, 10);
     state.settings.repliesPerLink = Number.isNaN(per) ? 1 : Math.min(20, Math.max(0, per));
     refreshQueue();
@@ -1781,6 +1923,14 @@
     const info = $('xap-label-info');
     if (!info) return;
     const { labels } = readLabels(state.settings.labels);
+    const { builtin } = contentSources();
+    // Content tu go khong gan label: chi dung content cua minh thi label vo dung
+    if (!builtin) {
+      info.innerHTML = labels
+        ? '<span class="xap-warn">Dang dung content cua minh: bai dang nguyen van, KHONG gan label nay</span>'
+        : '';
+      return;
+    }
     if (!labels) { info.innerHTML = ''; return; }
     const room = contentRoom(labels);
     const head = `Label ${tweetLength(labels)} ky tu · con ${Math.max(0, room)}/${MAX_TWEET} cho content`;
@@ -1794,22 +1944,43 @@
       : `${head} · cau nao cung vua`;
   }
 
+  /** O content tu go: chi hien khi nguon co dung no; dem so bai doc duoc. */
+  function renderOwnInfo() {
+    const box = $('xap-own-box');
+    if (!box) return;
+    const { builtin, own } = contentSources();
+    box.classList.toggle('xap-hide', !own);
+    if (!own) return;
+    const mine = ownContent();
+    const long = mine.filter((o) => tweetLength(o.text) > MAX_TWEET).length;
+    const used = new Set(state.postedContent.map((pc) => pc.contentIndex).filter(isOwnKey));
+    const done = mine.filter((o) => used.has(o.key)).length;
+    $('xap-own-info').innerHTML = mine.length
+      ? `List ${mine.length} bai · da dang ${done} · con ${mine.length - done} · dang nguyen van, khong gan label` +
+        `${builtin ? ` · het list thi boc tu kho co san (co gan label)` : ''}` +
+        `${long ? ` · <span class="xap-warn">${long} cau qua ${MAX_TWEET} ky tu se tu cat bot</span>` : ''}`
+      : '<span class="xap-warn">chua co content nao</span>';
+  }
+
   /** Dem so tweet doc duoc trong list va tien do reply/retweet. */
   function renderLinksInfo() {
     const info = $('xap-links-info');
     if (!info) return;
     const { ids, bad } = parseLinks(state.settings.links);
-    const per = state.settings.repliesPerLink;
+    const { perLink, retweet } = listPlan();
+    $('xap-reply-row')?.classList.toggle('xap-hide', (state.settings.listAction || 'both') === 'retweet');
     const listed = state.queue.filter((i) => i.fromList);
     const done = listed.filter((i) => state.posted.includes(fingerprint(i))).length;
 
     const parts = [];
     if (ids.length) {
-      parts.push(`${ids.length} tweet → ${ids.length * per} reply + ${ids.length} retweet`);
+      const what = [perLink ? `${ids.length * perLink} reply` : '', retweet ? `${ids.length} repost` : '']
+        .filter(Boolean).join(' + ');
+      parts.push(what ? `${ids.length} tweet → ${what}` : '<span class="xap-warn">0 viec (reply 0 lan, khong repost)</span>');
       parts.push(`xong ${done}/${listed.length}`);
     }
     if (bad) parts.push(`<span class="xap-warn">${bad} dong khong phai tweet id/link, bo qua</span>`);
-    if (ids.length && !readLabels(state.settings.labels).labels) {
+    if (ids.length && perLink && !readLabels(state.settings.labels).labels) {
       parts.push('<span class="xap-warn">chua co label: reply chi co content</span>');
     }
     info.innerHTML = parts.join(' · ');
@@ -1861,9 +2032,21 @@
     // lam vay se nuot xuong dong va ha chu thuong cua label goc).
     setVal('xap-queue', state.settings.labels);
     setVal('xap-content-quantity', state.settings.quantity);
+    setVal('xap-post', state.settings.postTweets !== false);
+    setVal('xap-src', state.settings.contentSource || 'builtin');
+    setVal('xap-own', state.settings.ownContent || '');
+    const tweetsOn = state.settings.postTweets !== false;
+    $('xap-qty-box')?.classList.toggle('xap-hide', !tweetsOn || ownOnly());
+    const qtyOwn = $('xap-qty-own');
+    if (qtyOwn) {
+      qtyOwn.classList.toggle('xap-hide', !tweetsOn || !ownOnly());
+      qtyOwn.textContent = `${parseOwnContent(state.settings.ownContent).length} bai (ca list cua minh)`;
+    }
     setVal('xap-links', state.settings.links);
+    setVal('xap-list-action', state.settings.listAction || 'both');
     setVal('xap-reply-per', state.settings.repliesPerLink);
     renderLabelInfo();
+    renderOwnInfo();
     renderLinksInfo();
     setVal('xap-gapmin', state.settings.gapMin);
     setVal('xap-gapmax', state.settings.gapMax);

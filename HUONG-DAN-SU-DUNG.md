@@ -97,12 +97,35 @@ Ngay dưới ô nhãn có dòng báo, ví dụ `Label 62 ký tự · còn 216/28
 
 | Ô | Nghĩa |
 |---|---|
-| **Số tweet muốn đăng** | Soạn sẵn bao nhiêu bài mới. Để `0` nếu chỉ muốn reply + retweet theo list tweet |
+| **Nguồn content** | Lấy bài từ đâu: **Kho có sẵn** (content-lenamiu.json), **Content của mình** (list bài tự gõ), hoặc **Cả hai** — xem mục "List bài của mình" |
+| **Đăng tweet mới ... bài** | Bỏ tick nếu **không muốn đăng bài mới**, chỉ reply/repost theo list tweet. Có tick thì soạn sẵn bấy nhiêu bài mới (dùng list của mình thì tự lấy bằng số bài trong list) |
 | **Cách nhau ... đến ... phút** | Chờ ngẫu nhiên trong khoảng này giữa hai bài |
 | **Tối đa ... bài/ngày** | Đủ số này thì nghỉ tới hôm sau |
 | **Chỉ đăng từ ... đến ... giờ** | Khung giờ được phép đăng. Để 7–23 thì không đăng lúc nửa đêm |
 | **Nhịp tự nhiên** | Nên bật. Làm khoảng cách giống người thật hơn |
 | **Lặp lại** | Hết danh sách thì quay lại từ đầu. Thường nên tắt |
+
+### List bài của mình
+
+Chọn **Nguồn content** là **"Content của mình"** (hoặc **"Cả hai"**) thì hiện thêm ô **List bài của mình**. Dán cả list bài vào, **các bài cách nhau bằng một dòng trống**:
+
+```
+Bài thứ nhất 💗
+bài này có hai dòng
+
+Bài thứ hai #hashtag
+
+Bài thứ ba
+```
+
+- **Đăng lần lượt từ trên xuống**, mỗi bài một lần. Xuống dòng một lần thì vẫn là cùng một bài; dòng `---` cũng dùng để tách bài được.
+- **Số bài = số bài trong list** — ô số lượng tự ẩn, chỗ đó hiện `3 bài (cả list của mình)`. Đăng hết list thì bot tự dừng.
+- Bài được **đăng nguyên văn, không gắn nhãn** — muốn có hashtag thì gõ luôn vào bài. Bài dài quá 280 ký tự thì tự cắt bớt.
+- Dưới ô list có dòng đếm, ví dụ `List 3 bài · đã đăng 1 · còn 2`.
+- Bài đã đăng thì **không đăng lại**, kể cả khi đổi nhãn hay sửa list. Thêm bài mới vào list (ở đâu cũng được) rồi bấm **"Bắt đầu"** là bot đăng tiếp đúng những bài mới. Muốn đăng lại cả list thì bấm **"Xoá lịch sử"**.
+- Nếu list tweet có reply, reply cũng lấy bài từ list này theo thứ tự (làm list tweet trước, rồi mới đăng bài mới).
+- **"Cả hai"**: đăng hết list của bạn trước (không gắn nhãn), hết list thì bốc ngẫu nhiên từ kho có sẵn (có gắn nhãn). Ở chế độ này vẫn dùng ô số lượng.
+- Chỉ dùng list của mình thì **ô nhãn không có tác dụng**, để trống cũng được.
 
 ### Chạy
 
@@ -127,7 +150,7 @@ Tới giờ, màn hình tự mở ô soạn bài, tự gõ và tự đăng. **Đ
 
 ---
 
-## 4. Reply + retweet theo list tweet
+## 4. Reply / repost theo list tweet
 
 Ô **"List tweet"** nằm ngay dưới ô số tweet. **Mỗi dòng một tweet id** — là dãy số cuối link bài:
 
@@ -138,7 +161,17 @@ Tới giờ, màn hình tự mở ô soạn bài, tự gõ và tự đăng. **Đ
 
 > Lấy id thế nào: mở bài trên X, link có dạng `https://x.com/LenaMiu_CH3/status/2103095712292696459` — id là dãy số sau `/status/`. Dán nguyên cả link vào ô cũng được, công cụ tự lấy id ra.
 
-Ô **"Mỗi tweet reply ... lần, rồi retweet"**: mỗi tweet sẽ được reply bấy nhiêu lần (mỗi lần một câu khác nhau), sau đó retweet một lần. Để `0` thì chỉ retweet, không reply.
+Ô **"Với mỗi tweet"** chọn việc cần làm:
+
+| Lựa chọn | Làm gì |
+|---|---|
+| **Reply rồi repost** | Reply N lần rồi repost (retweet) một lần |
+| **Chỉ reply** | Chỉ reply N lần, không repost |
+| **Chỉ repost** | Chỉ repost, không reply (ô số lần reply ẩn đi) |
+
+Ô **"Mỗi tweet reply ... lần"**: mỗi tweet được reply bấy nhiêu lần, mỗi lần một câu khác nhau.
+
+> Chỉ muốn reply/repost mà **không đăng bài mới**: bỏ tick **"Đăng tweet mới"**.
 
 **Reply dùng chính nhãn ở ô trên cùng** — giống hệt bài đăng mới: một câu trong kho, cách một dòng trống, rồi đến nhãn:
 
